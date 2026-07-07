@@ -2,14 +2,17 @@ name: Daily AutoSpa Posts
 
 on:
   schedule:
-    - cron: "0 15 * * *"    # slot 0 — morning (08:00 Kamloops)
-    - cron: "0 20 * * *"    # slot 1 — midday (13:00 Kamloops)
-    - cron: "0 1  * * *"    # slot 2 — evening (18:00 Kamloops)
+    - cron: "0 15 * * *"
+    - cron: "0 20 * * *"
+    - cron: "0 1  * * *"
   workflow_dispatch:
     inputs:
       slot:
         description: "Slot to post (0,1,2)"
         default: "0"
+
+permissions:
+  contents: write
 
 jobs:
   post:
@@ -47,6 +50,8 @@ jobs:
         env:
           SLOT: ${{ steps.slot.outputs.slot }}
           DRY_RUN: ${{ vars.DRY_RUN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
           IG_USER_ID: ${{ secrets.IG_USER_ID }}
           IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
         run: python src/main.py --slot "${SLOT}"
