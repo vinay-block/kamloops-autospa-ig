@@ -182,5 +182,5 @@ MASCOT = {
 # ---------------------------------------------------------------------------
 AUDIO = {
     "mode": "voiceover",          # "voiceover" | "music" | "none"
-    "voice": "en-US-AriaNeural",  # edge-tts voice
+    "voice": "en-US-AndrewMultilingualNeural",  # male host voice
 }

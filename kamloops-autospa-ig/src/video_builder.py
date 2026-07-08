@@ -30,7 +30,7 @@ FPS = scenes.FPS
 
 # per-type minimum durations / padding (seconds)
 _TIMING = {
-    "van":       (6.0, 0.6),
+    "van":       (8.5, 0.8),
     "vacuum":    (6.5, 1.2),
     "spray":     (6.5, 1.2),
     "host_talk": (5.0, 0.6),

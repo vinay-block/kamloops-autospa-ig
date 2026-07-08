@@ -27,10 +27,10 @@ def _caption(hook, extra=""):
 
 # ---------------------------------------------------------------- VO variant pools
 VAN_VO = [
-    "We come to you. Kamloops AutoSpa brings the full detail shop right to your driveway.",
-    "No drop-off, no waiting rooms. We bring the detail shop to your door.",
-    "Mobile detailing done right — we roll up to your place, fully equipped.",
-    "Your driveway is our shop. Kamloops AutoSpa comes to you.",
+    "We come to you. Kamloops AutoSpa pulls right up to your driveway, slides open the van, and the whole setup is ready to go — sprays, steam, and vacuum, all on board.",
+    "No drop-off, no waiting rooms. We roll up to your place, open the doors, and everything we need is right there in the van.",
+    "Mobile detailing done right. We arrive fully loaded — steamer, vacuum, and every product — and set up in your driveway.",
+    "Your driveway becomes our shop. We pull in, open the side door, and the full professional kit is ready to work.",
 ]
 
 INTRO_VO = [

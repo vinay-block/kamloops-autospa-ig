@@ -87,19 +87,17 @@ def host_frame(mouth=0.0, blink=0.0, arm=0.0, bob=0.0, hand_item=""):
 
 
 # ------------------------------------------------------------------ VAN
-VAN_BODY = "#101826"; VAN_HI = "#1b2740"; VAN_STRIPE = "#E7B54A"
+VAN_BODY = "#0a0d14"; VAN_HI = "#141a26"; VAN_STRIPE = "#E7B54A"
 VAN_CHROME = "#c7d0dc"
 TIRE = "#0a0d14"; RIM = "#cfd6df"; RIM_SH = "#8a93a1"; GOLD = "#E7B54A"
 
 def _alloy(cx, cy, ang, r=52):
-    """Premium multi-spoke alloy wheel with brake disc + gold hub."""
     spokes = ""
     for k in range(5):
         a = ang + k * 72
-        for off in (-9, 9):                      # twin-spoke
+        for off in (-9, 9):
             rad = (a + off) * math.pi / 180
-            x2 = cx + math.cos(rad) * (r - 14)
-            y2 = cy + math.sin(rad) * (r - 14)
+            x2 = cx + math.cos(rad) * (r - 14); y2 = cy + math.sin(rad) * (r - 14)
             spokes += (f'<line x1="{cx}" y1="{cy}" x2="{x2:.1f}" y2="{y2:.1f}" '
                        f'stroke="{RIM}" stroke-width="10" stroke-linecap="round"/>')
     lugs = ""
@@ -108,63 +106,111 @@ def _alloy(cx, cy, ang, r=52):
         lugs += f'<circle cx="{cx+math.cos(rad)*13:.1f}" cy="{cy+math.sin(rad)*13:.1f}" r="3.5" fill="{RIM_SH}"/>'
     return (
         f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="{TIRE}"/>'
-        f'<circle cx="{cx}" cy="{cy}" r="{r-6}" fill="#161b24"/>'          # sidewall
-        f'<circle cx="{cx}" cy="{cy}" r="{r-14}" fill="#2b3340"/>'         # brake disc
-        f'<path d="M {cx+r-30} {cy-20} a 22 22 0 0 1 0 40 l -8 0 a 16 16 0 0 0 0 -40 Z" fill="#c0392b"/>'  # caliper
+        f'<circle cx="{cx}" cy="{cy}" r="{r-6}" fill="#161b24"/>'
+        f'<circle cx="{cx}" cy="{cy}" r="{r-14}" fill="#2b3340"/>'
+        f'<path d="M {cx+r-30} {cy-20} a 22 22 0 0 1 0 40 l -8 0 a 16 16 0 0 0 0 -40 Z" fill="#c0392b"/>'
         f'<circle cx="{cx}" cy="{cy}" r="{r-16}" fill="none" stroke="{RIM_SH}" stroke-width="6"/>'
-        f'{spokes}'
-        f'<circle cx="{cx}" cy="{cy}" r="16" fill="{RIM}"/>'
-        f'<circle cx="{cx}" cy="{cy}" r="12" fill="{GOLD}"/>'
-        f'{lugs}'
-    )
+        f'{spokes}<circle cx="{cx}" cy="{cy}" r="16" fill="{RIM}"/>'
+        f'<circle cx="{cx}" cy="{cy}" r="12" fill="{GOLD}"/>{lugs}')
 
 
-def van_svg(cx, wheel_ang, ground=1250, beam=True):
-    """Branded mobile-detailing van, side profile facing LEFT."""
-    logo = _logo(cx + 285, ground - 158, 260)
-    beam_svg = ""
-    if beam:
-        beam_svg = (f'<polygon points="{cx-48},{ground-98} {cx-380},{ground-196} '
-                    f'{cx-380},{ground-6} {cx-48},{ground-70}" '
-                    f'fill="#ffe9a8" opacity="0.16"/>')
+def _van_interior(ox0, oy0, ox1, oy1):
+    """The mobile detailing kit revealed through the open door."""
+    w = ox1 - ox0
+    s1 = oy0 + (oy1-oy0)*0.40; s2 = oy0 + (oy1-oy0)*0.72
+    parts = [f'<rect x="{ox0}" y="{oy0}" width="{w}" height="{oy1-oy0}" fill="#0e131c"/>']
+    parts.append(f'<rect x="{ox0}" y="{s1}" width="{w}" height="5" fill="#2a3444"/>')
+    parts.append(f'<rect x="{ox0}" y="{s2}" width="{w}" height="5" fill="#2a3444"/>')
+    # top shelf: spray bottles (trigger sprayers)
+    for i, col in enumerate(["#22d3ee", "#E7B54A", "#c0392b"]):
+        bx = ox0 + 16 + i*30
+        parts.append(f'<rect x="{bx}" y="{oy0+12}" width="18" height="30" rx="4" fill="#e8eef5"/>')
+        parts.append(f'<rect x="{bx+2}" y="{oy0+26}" width="14" height="14" fill="{col}"/>')
+        parts.append(f'<rect x="{bx+3}" y="{oy0+2}" width="8" height="12" rx="2" fill="#2a3648"/>')
+        parts.append(f'<path d="M {bx+11} {oy0+4} l 10 -2 l 0 4 l -10 3 Z" fill="#2a3648"/>')
+    # vacuum canister + hose
+    vx = ox0 + w - 78
+    parts.append(f'<rect x="{vx}" y="{oy0+10}" width="46" height="34" rx="8" fill="#26303f"/>')
+    parts.append(f'<rect x="{vx+8}" y="{oy0+16}" width="30" height="8" rx="4" fill="{GOLD}"/>')
+    parts.append(f'<path d="M {vx} {oy0+30} q -22 6 -18 26" fill="none" stroke="#3a4658" stroke-width="6"/>')
+    # steam machine + wand (middle)
+    sx = ox0 + 18
+    parts.append(f'<rect x="{sx}" y="{s1+8}" width="52" height="34" rx="6" fill="#33465c"/>')
+    parts.append(f'<circle cx="{sx+40}" cy="{s1+16}" r="5" fill="#22d3ee"/>')
+    parts.append(f'<path d="M {sx+52} {s1+30} q 26 -2 34 14" fill="none" stroke="#8a93a1" stroke-width="5"/>')
+    # towel stack + jug (bottom)
+    for i, col in enumerate(["#22d3ee", "#E7B54A", "#e8eef5"]):
+        parts.append(f'<rect x="{ox0+16}" y="{s2+10+i*9}" width="70" height="7" rx="3" fill="{col}"/>')
+    jx = ox0 + w - 70
+    parts.append(f'<rect x="{jx}" y="{s2+8}" width="40" height="40" rx="8" fill="#1f5fae" opacity="0.9"/>')
+    parts.append(f'<rect x="{jx+12}" y="{s2+2}" width="14" height="10" rx="3" fill="#2a3648"/>')
+    return "".join(parts)
+
+
+def van_svg(cx, wheel_ang, ground=1250, beam=True, door=0.0):
+    """Luxury mobile-detailing van, side profile facing LEFT.
+    door 0..1 slides the side door open and reveals the tool kit inside."""
+    logo = _logo(cx + 300, ground - 168, 240)
+    # side door opening
+    ox0, oy0, ox1, oy1 = cx + 118, ground - 200, cx + 372, ground - 78
+    interior = _van_interior(ox0, oy0, ox1, oy1)
+    door_dx = door * 150
+    door_op = max(0.0, 1.0 - door * 1.15)
+    tool_op = min(1.0, door * 1.4)
+    beam_svg = (f'<polygon points="{cx-48},{ground-98} {cx-380},{ground-196} '
+                f'{cx-380},{ground-6} {cx-48},{ground-70}" fill="#ffe9a8" opacity="0.16"/>') if beam else ""
     return f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}">
+<defs>
+ <linearGradient id="vbody" x1="0" y1="0" x2="0" y2="1">
+   <stop offset="0" stop-color="#1c2432"/><stop offset="0.45" stop-color="#0d1420"/>
+   <stop offset="1" stop-color="#05080f"/>
+ </linearGradient>
+ <clipPath id="vopen"><rect x="{ox0}" y="{oy0}" width="{ox1-ox0}" height="{oy1-oy0}" rx="8"/></clipPath>
+</defs>
 {beam_svg}
 <g>
-  <!-- roof rack / light bar -->
-  <rect x="{cx+70}" y="{ground-232}" width="380" height="14" rx="7" fill="#20293a"/>
-  <rect x="{cx+120}" y="{ground-244}" width="150" height="14" rx="5" fill="{GOLD}"/>
-  <circle cx="{cx+140}" cy="{ground-237}" r="5" fill="#fff"/>
-  <circle cx="{cx+160}" cy="{ground-237}" r="5" fill="#fff"/>
-  <!-- body -->
-  <path d="M {cx+30} {ground-216} L {cx+500} {ground-216} Q {cx+514} {ground-216} {cx+514} {ground-92}
-           L {cx+514} {ground-64} L {cx-32} {ground-64} L {cx-44} {ground-120}
-           L {cx+30} {ground-216} Z" fill="{VAN_BODY}"/>
-  <!-- cargo panel (for decals) -->
-  <rect x="{cx+58}" y="{ground-204}" width="446" height="132" rx="12" fill="{VAN_HI}"/>
-  <!-- gold accent swoosh -->
-  <path d="M {cx-30} {ground-92} Q {cx+240} {ground-140} {cx+514} {ground-96}
-           L {cx+514} {ground-76} Q {cx+240} {ground-118} {cx-30} {ground-74} Z" fill="{VAN_STRIPE}"/>
+  <!-- roof rack + LED light bar -->
+  <rect x="{cx+70}" y="{ground-236}" width="400" height="12" rx="6" fill="#161d29"/>
+  <rect x="{cx+120}" y="{ground-248}" width="170" height="14" rx="5" fill="{GOLD}"/>
+  <circle cx="{cx+138}" cy="{ground-241}" r="5" fill="#fff"/><circle cx="{cx+162}" cy="{ground-241}" r="5" fill="#fff"/>
+  <!-- glossy body -->
+  <path d="M {cx+30} {ground-216} L {cx+500} {ground-216} Q {cx+516} {ground-216} {cx+516} {ground-90}
+           L {cx+516} {ground-64} L {cx-32} {ground-64} L {cx-44} {ground-120}
+           L {cx+30} {ground-216} Z" fill="url(#vbody)"/>
+  <!-- specular highlight -->
+  <path d="M {cx+40} {ground-206} L {cx+500} {ground-206} L {cx+500} {ground-196} L {cx+40} {ground-196} Z" fill="#3a4a63" opacity="0.5"/>
   <!-- tinted cab window + chrome trim -->
-  <path d="M {cx+26} {ground-206} L {cx-28} {ground-118} L {cx+26} {ground-118} L {cx+52} {ground-196} Z" fill="#1a2a3a"/>
-  <path d="M {cx+26} {ground-206} L {cx-28} {ground-118}" stroke="{VAN_CHROME}" stroke-width="4"/>
-  <!-- chrome lower trim -->
-  <rect x="{cx-30}" y="{ground-70}" width="544" height="6" fill="{VAN_CHROME}" opacity="0.7"/>
-  <!-- bumper + headlight -->
-  <rect x="{cx-50}" y="{ground-64}" width="74" height="22" rx="6" fill="#2a3648"/>
+  <path d="M {cx+26} {ground-206} L {cx-30} {ground-118} L {cx+26} {ground-118} L {cx+54} {ground-196} Z" fill="#12202e"/>
+  <path d="M {cx+26} {ground-206} L {cx-30} {ground-118}" stroke="{VAN_CHROME}" stroke-width="4"/>
+  <!-- gold pinstripe -->
+  <rect x="{cx-30}" y="{ground-104}" width="546" height="4" fill="{GOLD}"/>
+  <!-- interior (revealed as door opens) -->
+  <g clip-path="url(#vopen)" opacity="{tool_op:.2f}">{interior}</g>
+  <!-- door frame -->
+  <rect x="{ox0}" y="{oy0}" width="{ox1-ox0}" height="{oy1-oy0}" rx="8" fill="none" stroke="#2a3444" stroke-width="4"/>
+  <!-- sliding door panel -->
+  <g transform="translate({door_dx:.0f},0)" opacity="{door_op:.2f}">
+    <rect x="{ox0}" y="{oy0}" width="{ox1-ox0}" height="{oy1-oy0}" rx="10" fill="{VAN_HI}"/>
+    <rect x="{ox0}" y="{oy0}" width="{ox1-ox0}" height="{oy1-oy0}" rx="10" fill="none" stroke="#26303f" stroke-width="3"/>
+    <rect x="{ox0+16}" y="{oy0+50}" width="60" height="10" rx="5" fill="{VAN_CHROME}"/>
+    {logo if door < 0.05 else ""}
+  </g>
+  {logo if door >= 0.05 else ""}
+  <!-- chrome lower trim + bumper + headlight + mirror -->
+  <rect x="{cx-30}" y="{ground-70}" width="548" height="6" fill="{VAN_CHROME}" opacity="0.7"/>
+  <rect x="{cx-50}" y="{ground-64}" width="76" height="22" rx="6" fill="#2a3648"/>
   <ellipse cx="{cx-36}" cy="{ground-92}" rx="12" ry="14" fill="#ffe9a8"/>
-  <!-- side mirror -->
-  <rect x="{cx-30}" y="{ground-150}" width="18" height="26" rx="5" fill="#20293a"/>
-  <!-- wheel wells -->
+  <rect x="{cx-30}" y="{ground-150}" width="18" height="26" rx="5" fill="#161d29"/>
+  <!-- wheels -->
   <circle cx="{cx+95}" cy="{ground}" r="62" fill="{VAN_BODY}"/>
   <circle cx="{cx+425}" cy="{ground}" r="62" fill="{VAN_BODY}"/>
-  {logo}
   {_alloy(cx+95, ground, wheel_ang)}
   {_alloy(cx+425, ground, wheel_ang)}
 </g></svg>'''
 
 
-def van_frame(cx, wheel_ang, ground=1250, beam=True):
-    return rasterize(van_svg(cx, wheel_ang, ground, beam))
+def van_frame(cx, wheel_ang, ground=1250, beam=True, door=0.0):
+    return rasterize(van_svg(cx, wheel_ang, ground, beam, door))
 
 
 def driveway_bg():

@@ -266,21 +266,22 @@ def scene_before_after(before_path, after_path, title="REAL RESULTS",
     ImageDraw.Draw(mask).rounded_rectangle([0, 0, pw, ph], radius=36, fill=255)
 
     def gen():
+        hold_before = 0.28 * dur
+        wipe_end = 0.66 * dur
         for i in range(n):
             t = i / FPS
-            # slider sweeps left->right revealing AFTER on the left
-            p = bk.ease(min(1.0, max(0.0, (t - 0.5) / (dur - 1.6))))
-            slide = 0.06 + p * 0.88
-            sx = int(slide * pw)
-            # subtle shared ken-burns zoom
+            # wipe progress 0..1, LEFT -> RIGHT (before -> after)
+            q = bk.ease(min(1.0, max(0.0, (t - hold_before) / max(0.1, wipe_end - hold_before))))
+            wx = int(q * pw)
             s = 1.0 + 0.05 * (t / dur)
             def zoom(im):
                 zw, zh = int(pw * s), int(ph * s)
                 z = im.resize((zw, zh))
                 return z.crop(((zw - pw)//2, (zh - ph)//2, (zw - pw)//2 + pw, (zh - ph)//2 + ph))
-            bz, az = zoom(before), zoom(after)
-            comp = bz.copy()
-            comp.paste(az.crop((0, 0, max(1, sx), ph)), (0, 0))
+            bz, az = zoom(before), zoom(after)     # before=dirty, after=clean
+            comp = az.copy()                        # clean AFTER as the base
+            if wx < pw:                             # dirty BEFORE still covers the un-wiped right
+                comp.paste(bz.crop((wx, 0, pw, ph)), (wx, 0))
             comp.putalpha(mask)
 
             fr = background()
@@ -288,16 +289,17 @@ def scene_before_after(before_path, after_path, title="REAL RESULTS",
                                        _panel_shadow(px0, py0, px1, py1)).convert("RGB")
             fr.paste(comp, (px0, py0), comp)
             d = ImageDraw.Draw(fr, "RGBA")
-            # divider + handle
-            dx = px0 + sx
-            d.line([dx, py0, dx, py1], fill=(*ACCENT, 255), width=6)
-            d.ellipse([dx-26, (py0+py1)//2-26, dx+26, (py0+py1)//2+26],
-                      fill=(255, 255, 255, 235))
-            d.polygon([(dx-10, (py0+py1)//2), (dx-2, (py0+py1)//2-10), (dx-2, (py0+py1)//2+10)], fill=ACCENT)
-            d.polygon([(dx+10, (py0+py1)//2), (dx+2, (py0+py1)//2-10), (dx+2, (py0+py1)//2+10)], fill=ACCENT)
-            # labels
-            chip(d, px0+120, py0+30, "AFTER", font("bold", 34), bg=ACCENT, fg=(6,12,20), tracking=3)
-            chip(d, px1-120, py0+30, "BEFORE", font("bold", 34), bg=(20,26,38), fg=COLORS["muted"], tracking=3)
+            # moving wipe edge (only while wiping)
+            if 0 < wx < pw:
+                dx = px0 + wx
+                d.line([dx, py0, dx, py1], fill=(*ACCENT, 255), width=6)
+                d.ellipse([dx-24, (py0+py1)//2-24, dx+24, (py0+py1)//2+24], fill=(255, 255, 255, 235))
+            # single label that flips BEFORE -> AFTER as it cleans
+            after_on = q >= 0.5
+            lbl = "AFTER" if after_on else "BEFORE"
+            bg = ACCENT if after_on else (20, 26, 38)
+            fg = (6, 12, 20) if after_on else COLORS["muted"]
+            chip(d, W/2, py0 + 24, lbl, font("black", 46), bg=bg, fg=fg, tracking=6)
             fr = Image.alpha_composite(fr.convert("RGBA"), head)
             fr = Image.alpha_composite(fr, caption_band(caption, 1.0))
             fr = Image.alpha_composite(fr, foot).convert("RGB")
@@ -325,57 +327,65 @@ def _panel_shadow(px0, py0, px1, py1):
     return lay.filter(ImageFilter.GaussianBlur(22))
 
 
-def scene_van_arrival(dur=6.0, env=None, t_off=0.0):
-    """Branded van drives into the driveway — the 'we come to you' hook."""
+def scene_van_arrival(dur=8.5, env=None, t_off=0.0):
+    """Luxury van drives in, parks, then slides its side door open to reveal
+    the full mobile detailing kit."""
     from character import van_frame, driveway_bg
     n = int(dur * FPS)
     bg = driveway_bg()
     ground = 1250
     x_start, x_end = 1560, 470
-    drive_t = 2.8                       # seconds until parked
+    drive_t = 2.6
+    door_start, door_dur = drive_t + 0.4, 1.6
     foot = footer_handle()
-    # text overlay (revealed after park)
+
     txt = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     dt = ImageDraw.Draw(txt)
-    chip(dt, W/2, 250, "WE COME TO YOU", font("black", 60),
-         bg=ACCENT, fg=(6, 12, 20), tracking=6)
+    chip(dt, W/2, 250, "WE COME TO YOU", font("black", 60), bg=ACCENT, fg=(6, 12, 20), tracking=6)
     draw_tracked(dt, (W/2, 400), "Mobile detailing, right in your driveway.",
                  font("semibold", 42), COLORS["text"], tracking=1, anchor="m")
+
+    kit = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    kt = ImageDraw.Draw(kit)
+    chip(kt, W/2, 1580, "THE FULL SETUP — IN EVERY VAN", font("bold", 40),
+         bg=(12, 18, 28), fg=ACCENT, tracking=4)
+    draw_tracked(kt, (W/2, 1670), "Sprays · Vacuum · Steam · Ready to go",
+                 font("semibold", 38), COLORS["text"], tracking=1, anchor="m")
+
     dust = []
 
     def gen():
         prev_x = x_start
         for i in range(n):
             t = i / FPS
-            if t < drive_t:
-                p = bk.ease(t / drive_t)
-                cx = x_start + (x_end - x_start) * p
-            else:
-                cx = x_end
+            cx = x_start + (x_end - x_start) * bk.ease(t / drive_t) if t < drive_t else x_end
             moved = prev_x - cx
-            wheel_ang = -(x_start - cx) * 0.5         # rotate with travel
+            wheel_ang = -(x_start - cx) * 0.5
             prev_x = cx
-            # wheel dust while moving / on stop
+            door = min(1.0, max(0.0, (t - door_start) / door_dur))
             if moved > 1.5:
                 dust.append([cx + 470, ground + 20, 0.0])
             for dpt in dust:
-                dpt[2] += 1 / FPS
-                dpt[0] += 30 / FPS
-            dust[:] = [d for d in dust if d[2] < 0.6]
+                dpt[2] += 1 / FPS; dpt[0] += 30 / FPS
+            dust[:] = [dd for dd in dust if dd[2] < 0.6]
 
             fr = bg.copy()
             fr = Image.alpha_composite(fr.convert("RGBA"),
-                                       van_frame(cx, wheel_ang, ground)).convert("RGB")
+                                       van_frame(cx, wheel_ang, ground, door=door)).convert("RGB")
             d = ImageDraw.Draw(fr, "RGBA")
             for dx, dy, age in dust:
                 a = int(120 * (1 - age / 0.6)); r = 14 + age * 40
                 d.ellipse([dx-r, dy-r, dx+r, dy+r], fill=(150, 140, 120, max(0, a)))
-            # text fades in after park
+            # top "we come to you" text after park
             if t > drive_t - 0.3:
                 fade = min(1.0, (t - (drive_t - 0.3)) / 0.6)
-                tl = txt.copy()
-                tl.putalpha(tl.split()[3].point(lambda a: int(a * fade)))
+                tl = txt.copy(); tl.putalpha(tl.split()[3].point(lambda a: int(a * fade)))
                 fr = Image.alpha_composite(fr.convert("RGBA"), tl).convert("RGB")
+            # kit caption once the door is mostly open
+            if door > 0.55:
+                fade = min(1.0, (door - 0.55) / 0.4)
+                kl = kit.copy(); kl.putalpha(kl.split()[3].point(lambda a: int(a * fade)))
+                fr = Image.alpha_composite(fr.convert("RGBA"), kl).convert("RGB")
             fr = Image.alpha_composite(fr.convert("RGBA"), foot).convert("RGB")
             yield fr
     return gen(), dur
