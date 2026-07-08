@@ -48,13 +48,13 @@ def host_svg(mouth=0.0, blink=0.0, arm=0.0, bob=0.0, hand_item=""):
   <path d="M 540 1140 Q 780 1160 780 1520 L 660 1520 Q 660 1220 540 1180 Z" fill="{TEE_SH}"/>
   <path d="M 450 1170 Q 540 1240 630 1170" fill="none" stroke="{TEE_HI}" stroke-width="14"/>
   <rect x="492" y="1050" width="96" height="130" rx="40" fill="{SKIN_SH}"/>
-  <path d="M 320 1230 Q 250 1360 300 1500 L 380 1490 Q 350 1360 400 1260 Z" fill="{TEE}"/>
-  <path d="M 760 1230 Q 850 1300 840 1400 L 740 1420 Q 720 1320 700 1270 Z" fill="{TEE}"/>
-  <g transform="rotate({arm} 800 1360)">
-    <path d="M 800 1360 Q 900 1300 940 1160 L 860 1120 Q 820 1260 740 1330 Z" fill="{SKIN}"/>
-    <ellipse cx="900" cy="1150" rx="52" ry="46" fill="{SKIN}"/>
-    {hand_item}
-  </g>
+  <!-- arms: tee sleeve + skin forearm + hand, resting naturally at the sides -->
+  <line x1="360" y1="1215" x2="298" y2="1352" stroke="{TEE}" stroke-width="80" stroke-linecap="round"/>
+  <line x1="298" y1="1352" x2="322" y2="1482" stroke="{SKIN}" stroke-width="60" stroke-linecap="round"/>
+  <circle cx="328" cy="1500" r="40" fill="{SKIN}"/>
+  <line x1="720" y1="1215" x2="782" y2="1352" stroke="{TEE}" stroke-width="80" stroke-linecap="round"/>
+  <line x1="782" y1="1352" x2="758" y2="1482" stroke="{SKIN}" stroke-width="60" stroke-linecap="round"/>
+  <circle cx="752" cy="1500" r="40" fill="{SKIN}"/>
   {_logo(500, 1340, 210)}
   <ellipse cx="392" cy="905" rx="26" ry="34" fill="{SKIN}"/>
   <ellipse cx="688" cy="905" rx="26" ry="34" fill="{SKIN}"/>
@@ -168,26 +168,36 @@ def van_frame(cx, wheel_ang, ground=1250, beam=True):
 
 
 def driveway_bg():
-    """Static dusk driveway + house, cohesive with the brand palette."""
+    """Static DAYTIME driveway + house. Sky is deeper up top so overlaid
+    white text stays readable, brighter toward the horizon."""
     svg = f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}">
 <defs>
  <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
-   <stop offset="0" stop-color="#0b1220"/><stop offset="0.62" stop-color="#111a2e"/>
-   <stop offset="0.63" stop-color="#0a0f18"/><stop offset="1" stop-color="#05080f"/>
+   <stop offset="0" stop-color="#2f74b8"/><stop offset="0.55" stop-color="#7fbbe8"/>
+   <stop offset="0.62" stop-color="#bfe3ff"/>
  </linearGradient>
 </defs>
 <rect width="{W}" height="{H}" fill="url(#sky)"/>
-<!-- stars -->
-{''.join(f'<circle cx="{(i*137)%W}" cy="{(i*71)%700+60}" r="{2+(i%3)}" fill="#cfe0f0" opacity="0.5"/>' for i in range(26))}
+<!-- sun + glow -->
+<circle cx="850" cy="300" r="180" fill="#ffe9a8" opacity="0.28"/>
+<circle cx="850" cy="300" r="90" fill="#fff3c8"/>
+<!-- clouds -->
+<g fill="#ffffff" opacity="0.9">
+  <ellipse cx="250" cy="360" rx="120" ry="46"/><ellipse cx="330" cy="340" rx="90" ry="40"/>
+  <ellipse cx="620" cy="520" rx="110" ry="42"/><ellipse cx="700" cy="505" rx="80" ry="36"/>
+</g>
+<!-- grass -->
+<rect x="0" y="1040" width="{W}" height="880" fill="#4f9d55"/>
+<rect x="0" y="1040" width="{W}" height="26" fill="#5cb063"/>
 <!-- house -->
-<rect x="560" y="720" width="430" height="360" fill="#141d2e"/>
-<polygon points="540,720 775,560 1010,720" fill="#0e1524"/>
-<rect x="620" y="800" width="90" height="110" rx="6" fill="#f2c15a" opacity="0.85"/>
-<rect x="760" y="800" width="90" height="110" rx="6" fill="#f2c15a" opacity="0.7"/>
-<rect x="640" y="960" width="120" height="120" fill="#0e1524"/>            <!-- door -->
-<rect x="840" y="940" width="150" height="140" rx="8" fill="#1b2740"/>     <!-- garage -->
+<rect x="560" y="640" width="440" height="410" fill="#e7ddcf"/>
+<polygon points="536,640 780,470 1024,640" fill="#b6523f"/>
+<rect x="620" y="720" width="96" height="120" rx="6" fill="#8fd0f5" stroke="#ffffff" stroke-width="8"/>
+<rect x="770" y="720" width="96" height="120" rx="6" fill="#8fd0f5" stroke="#ffffff" stroke-width="8"/>
+<rect x="636" y="900" width="120" height="150" fill="#7a5233"/>
+<rect x="850" y="880" width="150" height="170" rx="6" fill="#cfc4b4" stroke="#ffffff" stroke-width="6"/>
 <!-- driveway -->
-<polygon points="120,1300 960,1300 820,1080 300,1080" fill="#121826"/>
-<polygon points="300,1080 820,1080 812,1096 308,1096" fill="#1c2740" opacity="0.6"/>
+<polygon points="120,1300 960,1300 812,1050 300,1050" fill="#9aa3ad"/>
+<polygon points="300,1050 812,1050 806,1064 306,1064" fill="#b4bcc6"/>
 </svg>'''
     return rasterize(svg).convert("RGB")

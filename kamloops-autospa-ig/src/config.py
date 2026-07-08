@@ -98,6 +98,18 @@ INTERIOR_TIPS = [
      "Slide the seats all the way forward and back. The worst crumbs hide in the rails."),
     ("PROTECT YOUR DASH FROM UV",
      "A UV-safe dressing stops your dashboard fading and cracking in that Kamloops summer sun."),
+    ("SHAMPOO, DON'T SOAK",
+     "Use a little product and extract the water. Over-wetting carpet leads to mold and smell."),
+    ("CLEAN THE PEDALS & SILLS",
+     "Pedals and door sills hold ground-in dirt that makes a clean car still look tired."),
+    ("HEADLINER NEEDS A LIGHT TOUCH",
+     "Dab, don't scrub, the roof liner. Rubbing hard can loosen the glue underneath."),
+    ("DOOR POCKETS ARE A TRAP",
+     "Empty and wipe the door pockets. Sand and coins hide there and scratch as you drive."),
+    ("SEATBELTS GET DIRTY TOO",
+     "Pull each belt all the way out and wipe it down. They pick up years of hand grime."),
+    ("AIR VENTS LAST",
+     "Blow and brush vents at the end, so the dust you loosen doesn't resettle on clean surfaces."),
 ]
 
 # ---------------------------------------------------------------------------
@@ -170,5 +182,5 @@ MASCOT = {
 # ---------------------------------------------------------------------------
 AUDIO = {
     "mode": "voiceover",          # "voiceover" | "music" | "none"
-    "voice": "en-US-AndrewMultilingualNeural",  # edge-tts voice
+    "voice": "en-US-AriaNeural",  # edge-tts voice
 }

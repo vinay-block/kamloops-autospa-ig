@@ -1,59 +1,120 @@
 """
-Content pool. Each builder returns a *recipe* (see video_builder). A daily
-selector rotates through the pool so the three posts each day are different
-and the feed doesn't repeat for a long time.
+Content pool with DAILY-advancing rotation.
 
-Every recipe opens with the van arrival ("we come to you") so every single
-post reinforces that Kamloops AutoSpa is mobile.
+Every scene's narration is drawn from a pool of variants and selected by a
+sequence number that advances every day, so the same format (e.g. "deep
+vacuum") uses different scripts, tips, zones and captions on different days.
+The weekly grid keeps the *format* mix balanced; the variant pools keep the
+*content* fresh so nothing repeats day to day.
+
+Every recipe opens with the van arrival ("we come to you").
 """
 import os
 import datetime
 from config import BRAND, INTERIOR_TIPS, CAR_PACKAGES, HASHTAGS, CTA_LINES
+import interiors
+
+
+def _v(pool, seq):
+    return pool[seq % len(pool)]
 
 
 def _caption(hook, extra=""):
-    cta = CTA_LINES[0]
+    cta = _v(CTA_LINES, 0)
     body = f"{hook}\n\n{extra}\n{cta}\n\n{HASHTAGS}".replace("\n\n\n", "\n\n")
     return body.strip()
 
 
-VAN = {"type": "van",
-       "vo": "We come to you. Kamloops AutoSpa brings the full detail shop "
-             "right to your driveway."}
+# ---------------------------------------------------------------- VO variant pools
+VAN_VO = [
+    "We come to you. Kamloops AutoSpa brings the full detail shop right to your driveway.",
+    "No drop-off, no waiting rooms. We bring the detail shop to your door.",
+    "Mobile detailing done right — we roll up to your place, fully equipped.",
+    "Your driveway is our shop. Kamloops AutoSpa comes to you.",
+]
 
-HOST_INTRO = {"type": "host_talk", "title": "MOBILE INTERIOR DETAIL",
-              "caption": "We bring the whole shop to you.",
-              "vo": "Welcome to Kamloops AutoSpa. We're fully mobile, so we bring "
-                    "every tool and product right to your driveway. Let me walk you "
-                    "through how we bring an interior back to life."}
+INTRO_VO = [
+    "Welcome to Kamloops AutoSpa. We're fully mobile, so we bring every tool and product to you. Here's how we bring an interior back to life.",
+    "At Kamloops AutoSpa we treat every interior like it's our own. Let me show you exactly what a mobile deep-detail looks like.",
+    "Here's what happens when we pull up to detail your interior — the same process, every single car.",
+    "People ask what a full interior detail actually includes. Let me walk you through it, step by step.",
+]
+
+VACUUM_VO = [
+    "First, the deep vacuum. We work the seats, mats, and every seam and rail, pulling out dust, crumbs, and pet hair from where you can't reach.",
+    "We start with a serious vacuum — seats slid forward, mats out, every crack and rail cleared of the grit that builds up over months.",
+    "Step one is always the vacuum. We get under the seats, into the seat tracks, and along every edge most people never touch.",
+    "The vacuum comes first. Crumbs, sand, pet hair — we pull it all out before a single wipe, so we're not just moving dirt around.",
+]
+
+STEAM_VO = [
+    "Next, steam and wipe. We hit the vents, dash, and console with steam to lift baked-on grime, then wipe every surface streak-free.",
+    "Then we steam-clean the hard surfaces. Steam lifts grime out of vents and seams that a dry cloth can never reach.",
+    "Now the steam. It melts away sticky residue on the console and cupholders, and we follow with a clean, streak-free wipe.",
+    "After vacuuming, we steam and detail every surface — dash, vents, buttons, and trim — until it's spotless.",
+]
+
+PROTECT_VO = [
+    "Then we condition the leather and trim so it won't fade or crack, and finish the glass with no haze and no streaks.",
+    "To finish, we protect. Leather conditioned, trim dressed against UV, and the glass wiped crystal clear.",
+    "Last, protection. A UV dressing keeps your dash and trim from cracking in the Kamloops sun, and the glass gets a streak-free finish.",
+    "We seal it all in — conditioned leather, protected plastics, and spotless glass inside and out.",
+]
+
+OUTRO_VO = [
+    "The result is a car that feels brand new, and you never had to leave home. Book your mobile detail in Kamloops today.",
+    "That's a full interior reset, done in your driveway. Message us to book yours.",
+    "Fresh, protected, and spotless — without you lifting a finger. DM us to get on the schedule.",
+    "A brand-new feeling interior, right at your place. Book us anywhere in Kamloops.",
+]
+
+BA_INTRO_VO = [
+    "Watch this interior go from grimy to spotless. This is the mobile deep-detail difference.",
+    "Here's a real transformation — from worn and dirty to fresh and clean.",
+    "Before and after. This is what a full mobile detail actually does.",
+]
+
+BA_PROCESS_VO = [
+    "Getting there takes a full process: deep vacuum, steam on every surface, a shampoo and extraction on the fabric, then a protectant.",
+    "That result is vacuum, steam, shampoo, extraction, and protection — the complete interior treatment.",
+    "It's not one trick — it's a deep vacuum, steam clean, fabric shampoo, and a protective finish, all in your driveway.",
+]
+
+PROMO_INTRO_VO = [
+    "Wondering what a mobile detail costs? We keep it simple with clear packages, and we come to you anywhere in Kamloops.",
+    "Here's our detailing menu — pick your level, and we handle everything at your place.",
+    "Simple pricing, no surprises. Choose a package and we bring the whole shop to your driveway.",
+]
+
+HOOKS = [
+    "This is how we deep-clean your interior — right in your driveway. 🚐✨",
+    "A full interior reset, done at your place. 🧼",
+    "Watch a mobile deep-detail come together. ✨",
+    "Every surface, spotless — without leaving home. 🚗",
+]
+
+VAN = lambda seq: {"type": "van", "vo": _v(VAN_VO, seq)}
+HOST_INTRO = lambda seq: {"type": "host_talk", "title": "MOBILE INTERIOR DETAIL",
+                          "caption": "We bring the whole shop to you.", "vo": _v(INTRO_VO, seq)}
 
 
+# ---------------------------------------------------------------- recipes
 def action_vacuum_steam(seq):
     return {
         "id": "action_vacuum_steam",
         "segments": [
-            VAN,
+            VAN(seq),
             {"type": "vacuum", "title": "STEP 1 — DEEP VACUUM",
-             "caption": "Seats, mats & every seam.",
-             "vo": "First, the deep vacuum. We work the seats, the mats, and every "
-                   "seam and rail, pulling out the dust, crumbs, and pet hair that "
-                   "build up where you just can't reach."},
+             "caption": "Seats, mats & every seam.", "vo": _v(VACUUM_VO, seq)},
             {"type": "spray", "title": "STEP 2 — STEAM & WIPE",
-             "caption": "Vents, dash & console — spotless.",
-             "vo": "Next, steam and wipe. We hit the vents, dash, and console with "
-                   "steam to lift baked-on grime, then wipe every surface down to a "
-                   "clean, streak-free finish."},
+             "caption": "Vents, dash & console — spotless.", "vo": _v(STEAM_VO, seq)},
             {"type": "host_talk", "title": "STEP 3 — PROTECT & FINISH",
-             "caption": "Leather, trim & glass — sealed.",
-             "vo": "Then we condition the leather and trim so it won't fade or crack, "
-                   "and finish the glass so there's no haze and no streaks left behind."},
+             "caption": "Leather, trim & glass — sealed.", "vo": _v(PROTECT_VO, seq)},
             {"type": "outro", "line": "Fresh interior, zero effort — we come to you.",
-             "vo": "The result is a car that feels brand new, and you never had to "
-                   "leave home. Book your mobile detail in Kamloops today."},
+             "vo": _v(OUTRO_VO, seq)},
         ],
-        "caption": _caption(
-            "This is how we deep-clean your interior — right in your driveway. 🚐✨",
-            "Deep vacuum, steam and wipe, then protect. Mobile detailing across Kamloops."),
+        "caption": _caption(_v(HOOKS, seq),
+                            "Deep vacuum, steam & wipe, then protect. Mobile detailing across Kamloops."),
     }
 
 
@@ -61,29 +122,18 @@ def action_spray_shine(seq):
     return {
         "id": "action_spray_shine",
         "segments": [
-            VAN,
+            VAN(seq),
             {"type": "spray", "title": "SPRAY, STEAM & SHINE",
-             "caption": "Vents, dash & console — spotless.",
-             "vo": "We start up top, hitting the vents, dash, and console with steam "
-                   "and a streak-free wipe, so every hard surface shines like the day "
-                   "it left the lot."},
+             "caption": "Vents, dash & console — spotless.", "vo": _v(STEAM_VO, seq + 1)},
             {"type": "vacuum", "title": "EVERY LAST CRUMB",
-             "caption": "Seats, rails & mats — fully vacuumed.",
-             "vo": "Then a deep vacuum gets the seats, the rails, and the mats, right "
-                   "down to the crumbs and grit hiding under the seats where you never "
-                   "look."},
-            {"type": "host_talk", "title": "THE DETAILS THAT MATTER",
-             "caption": "Cupholders, door jambs & trim.",
-             "vo": "We finish the little things that make the biggest difference: the "
-                   "cupholders, the door jambs, and every piece of trim, all cleaned "
-                   "and protected."},
+             "caption": "Seats, rails & mats — fully vacuumed.", "vo": _v(VACUUM_VO, seq + 1)},
+            {"type": "host_talk", "title": "PROTECT & FINISH",
+             "caption": "Cupholders, jambs & trim.", "vo": _v(PROTECT_VO, seq + 1)},
             {"type": "outro", "line": "Book your mobile interior detail today.",
-             "vo": "Every surface, spotless, without you leaving home. Message us to "
-                   "book your mobile detail here in Kamloops."},
+             "vo": _v(OUTRO_VO, seq + 1)},
         ],
-        "caption": _caption(
-            "Every surface, spotless — without leaving home. 🧼",
-            "Steam, shine, deep vacuum, and the little details. Mobile detailing in Kamloops."),
+        "caption": _caption(_v(HOOKS, seq + 1),
+                            "Steam, shine, deep vacuum, and the details. Mobile detailing in Kamloops."),
     }
 
 
@@ -91,66 +141,52 @@ def instruction_3step(seq):
     return {
         "id": "instruction_3step",
         "segments": [
-            VAN,
-            {"type": "host_talk", "title": "3 STEPS TO A FRESH INTERIOR",
-             "caption": "Here's the pro routine we use.",
-             "vo": "Here are the three steps we use to make any interior "
-                   "feel brand new."},
+            VAN(seq), HOST_INTRO(seq),
             {"type": "vacuum", "title": "1 — VACUUM FIRST",
-             "caption": "Always vacuum before you wipe.",
-             "vo": "Step one. Always vacuum first, before you wipe, so you're "
-                   "not just pushing dust around."},
+             "caption": "Always vacuum before you wipe.", "vo": _v(VACUUM_VO, seq + 2)},
             {"type": "spray", "title": "2 — STEAM & WIPE",
-             "caption": "Steam lifts what cloths can't.",
-             "vo": "Step two. Steam and wipe the hard surfaces. Steam lifts "
-                   "grime that a dry cloth just can't."},
-            {"type": "outro", "line": "3 — Protect & seal. Then book us to do it for you.",
-             "vo": "Step three. Protect and seal. Or just book us, and we'll "
-                   "do all three in your driveway."},
+             "caption": "Steam lifts what cloths can't.", "vo": _v(STEAM_VO, seq + 2)},
+            {"type": "outro", "line": "3 — Protect & seal. Or book us to do it for you.",
+             "vo": "Step three, protect and seal every surface. " + _v(OUTRO_VO, seq + 2)},
         ],
-        "caption": _caption(
-            "3 steps to a fresh interior — save this one. 📌",
-            "Vacuum first, steam and wipe, then protect. Or let us come to you."),
+        "caption": _caption("3 steps to a fresh interior — save this one. 📌",
+                            "Vacuum first, steam and wipe, then protect. Or let us come to you."),
     }
 
 
 def host_tip(seq):
     head, spoken = INTERIOR_TIPS[seq % len(INTERIOR_TIPS)]
-    head2, spoken2 = INTERIOR_TIPS[(seq + 3) % len(INTERIOR_TIPS)]
+    head2, spoken2 = INTERIOR_TIPS[(seq + 7) % len(INTERIOR_TIPS)]
     return {
         "id": "host_tip",
         "segments": [
-            VAN,
+            VAN(seq),
             {"type": "host_talk", "title": "INTERIOR TIP OF THE DAY",
              "caption": "A quick one that saves you money.",
-             "vo": "Here's a quick interior tip from the Kamloops AutoSpa team, the "
-                   "kind of thing we do on every single detail."},
+             "vo": "Here's a quick interior tip from the Kamloops AutoSpa team."},
             {"type": "host_talk", "title": head, "caption": spoken,
-             "vo": f"{spoken} It's a small habit, but it makes a big difference over time."},
+             "vo": f"{spoken} A small habit that makes a big difference over time."},
             {"type": "host_talk", "title": f"BONUS — {head2}", "caption": spoken2,
-             "vo": f"And a bonus tip. {spoken2} That one's easy to forget."},
+             "vo": f"And a bonus. {spoken2} That one's easy to forget."},
             {"type": "outro", "line": "Want it done for you? We come to you.",
-             "vo": "Or skip the work entirely. We come to you, anywhere in Kamloops, "
-                   "and handle all of it. Message us to book."},
+             "vo": "Or skip the work — we come to you, anywhere in Kamloops, and handle all of it."},
         ],
         "caption": _caption(f"Interior tip: {head.title()} 💡",
-                            f"{spoken} Save this one — and DM us to book a mobile detail."),
+                            f"{spoken} Save this — and DM us to book a mobile detail."),
     }
 
 
 def mascot_tip(seq):
-    head2, spoken2 = INTERIOR_TIPS[(seq + 5) % len(INTERIOR_TIPS)]
+    head2, spoken2 = INTERIOR_TIPS[(seq + 4) % len(INTERIOR_TIPS)]
     return {
         "id": "mascot_tip",
         "segments": [
-            VAN, HOST_INTRO,
+            VAN(seq), HOST_INTRO(seq),
             {"type": "mascot", "idx": seq},
             {"type": "host_talk", "title": head2, "caption": spoken2,
-             "vo": f"One more from the team. {spoken2} Little habits like these keep "
-                   f"your interior looking detailed between visits."},
+             "vo": f"One more from the team. {spoken2} Little habits keep your interior looking detailed between visits."},
             {"type": "outro", "line": "Booked solid? DM us — we come to you.",
-             "vo": "And when you want the full treatment, we bring the detail shop "
-                   "to your driveway. Message us to book."},
+             "vo": _v(OUTRO_VO, seq + 3)},
         ],
         "caption": _caption("Sudsy's interior tips of the day 🫧",
                             "Little habits, big difference. Mobile detailing in Kamloops."),
@@ -162,115 +198,80 @@ def promo_price(seq):
     return {
         "id": "promo_price",
         "segments": [
-            VAN,
+            VAN(seq),
             {"type": "host_talk", "title": "MOBILE DETAIL PACKAGES",
-             "caption": "Pick your level — we handle the rest.",
-             "vo": "Wondering what a mobile detail costs? We keep it simple with a "
-                   "few clear packages, and we come to you anywhere in Kamloops."},
+             "caption": "Pick your level — we handle the rest.", "vo": _v(PROMO_INTRO_VO, seq)},
             {"type": "promo", "idx": seq},
             {"type": "host_talk", "title": f"{pkg['name'].upper()} — WHAT YOU GET",
              "caption": pkg["blurb"],
-             "vo": f"The {pkg['name']} package includes {pkg['blurb'].lower()}. "
-                   f"Everything done in your driveway, on your schedule."},
+             "vo": f"The {pkg['name']} package includes {pkg['blurb'].lower()}. All done in your driveway, on your schedule."},
             {"type": "outro", "line": "DM \"BOOK\" to reserve your spot.",
-             "vo": "Message us the word book, and we'll lock in your spot. We come "
-                   "to you, anywhere in Kamloops."},
+             "vo": "Message us the word book and we'll lock in your spot, anywhere in Kamloops."},
         ],
-        "caption": _caption(
-            f"{pkg['name']} mobile detail — ${pkg['price']}. 🚗",
-            f"{pkg['blurb']}. We come to you across Kamloops."),
+        "caption": _caption(f"{pkg['name']} mobile detail — ${pkg['price']}. 🚗",
+                            f"{pkg['blurb']}. We come to you across Kamloops."),
     }
 
 
-def _pairs():
-    """Discover before/after photo pairs in assets/before_after/.
-    Name them like  seat_before.jpg / seat_after.jpg  (any stem)."""
-    root = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                        "assets", "before_after")
-    if not os.path.isdir(root):
-        return []
-    befores = {}
-    afters = {}
-    for f in os.listdir(root):
-        low = f.lower()
-        stem, _, ext = low.rpartition(".")
-        if ext not in ("jpg", "jpeg", "png"):
-            continue
-        if "before" in low:
-            befores[low.replace("before", "")] = os.path.join(root, f)
-        elif "after" in low:
-            afters[low.replace("after", "")] = os.path.join(root, f)
-    keys = sorted(set(befores) & set(afters))
-    return [(befores[k], afters[k]) for k in keys]
-
-
 def before_after(seq):
-    import interiors
     pairs = _pairs()
-    if pairs:                                   # real customer photos, if provided
+    if pairs:
         b, a = pairs[seq % len(pairs)]
         seg = {"type": "before_after", "before": b, "after": a,
                "title": "REAL RESULTS", "caption": "Real Kamloops interior — before & after.",
-               "vo": "Here's a real interior we detailed right in the driveway. "
-                     "Watch the before, and after."}
-    else:                                       # fully auto-generated interior
+               "vo": _v(BA_INTRO_VO, seq)}
+    else:
         zone = interiors.ZONES[seq % len(interiors.ZONES)]
         ztitle, zcap = interiors.ZONE_TITLES[zone]
         seg = {"type": "before_after_auto", "zone": zone, "seed": seq,
-               "title": ztitle, "caption": zcap,
-               "vo": "Watch this interior go from grimy to spotless. "
-                     "This is the mobile deep-detail difference."}
+               "title": ztitle, "caption": zcap, "vo": _v(BA_INTRO_VO, seq)}
     return {
         "id": "before_after",
         "segments": [
-            VAN, HOST_INTRO,
+            VAN(seq), HOST_INTRO(seq),
             seg,
             {"type": "host_talk", "title": "HOW WE GET THERE",
-             "caption": "Vacuum, steam, shampoo, protect.",
-             "vo": "Getting that result takes a full process: a deep vacuum, steam "
-                   "on every surface, a shampoo and extraction on the fabric, and a "
-                   "protectant to keep it looking new."},
+             "caption": "Vacuum, steam, shampoo, protect.", "vo": _v(BA_PROCESS_VO, seq)},
             {"type": "outro", "line": "Yours could be next — we come to you.",
-             "vo": "Your interior could look just like this, and we do it all right "
-                   "in your driveway. Message us to book."},
+             "vo": _v(OUTRO_VO, seq + 2)},
         ],
         "caption": _caption("Before → After interior transformation. 🤯",
                             "This is what a mobile deep-detail gets you. Book yours today."),
     }
 
 
-# ------------------------------------------------------------- rotation grid
-POOL = [
-    action_vacuum_steam,
-    host_tip,
-    action_spray_shine,
-    instruction_3step,
-    mascot_tip,
-    promo_price,
-]
+def _pairs():
+    root = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                        "assets", "before_after")
+    if not os.path.isdir(root):
+        return []
+    b, a = {}, {}
+    for f in os.listdir(root):
+        low = f.lower()
+        if low.rsplit(".", 1)[-1] not in ("jpg", "jpeg", "png"):
+            continue
+        if "before" in low:
+            b[low.replace("before", "")] = os.path.join(root, f)
+        elif "after" in low:
+            a[low.replace("after", "")] = os.path.join(root, f)
+    return [(b[k], a[k]) for k in sorted(set(b) & set(a))]
 
-# Curated weekly mix (weekday 0=Mon..6=Sun) x 3 slots.
-# Leans on action + before/after + personality; promo kept light.
+
+# ---------------------------------------------------------------- rotation
 WEEK = {
-    0: [action_vacuum_steam, host_tip,           before_after],       # Mon
-    1: [instruction_3step,   action_spray_shine, promo_price],        # Tue
-    2: [before_after,        mascot_tip,         action_vacuum_steam], # Wed
-    3: [action_spray_shine,  host_tip,           before_after],       # Thu
-    4: [instruction_3step,   action_vacuum_steam, promo_price],       # Fri
-    5: [before_after,        action_spray_shine, mascot_tip],         # Sat
-    6: [host_tip,            action_vacuum_steam, before_after],       # Sun
+    0: [action_vacuum_steam, host_tip,            before_after],
+    1: [instruction_3step,   action_spray_shine,  promo_price],
+    2: [before_after,        mascot_tip,          action_vacuum_steam],
+    3: [action_spray_shine,  host_tip,            before_after],
+    4: [instruction_3step,   action_vacuum_steam, promo_price],
+    5: [before_after,        action_spray_shine,  mascot_tip],
+    6: [host_tip,            action_vacuum_steam, before_after],
 }
-
-# fallback rotation when a before/after slot has no photos yet
-_FALLBACK = [action_vacuum_steam, action_spray_shine, instruction_3step]
 
 
 def pick(date=None, slot=0):
-    """Choose a recipe for a given date + slot (0,1,2) from the weekly grid.
-    Before/after is fully self-generating (or uses your photos if you add
-    them to assets/before_after/), so every slot always renders."""
+    """Pick a recipe for date+slot. Sequence advances DAILY so scripts, tips,
+    zones and packages are fresh every day (nothing repeats day to day)."""
     date = date or datetime.date.today()
-    week = date.isocalendar()[1]
-    seq = week * 3 + slot            # advances tips / zones / packages weekly
+    seq = date.timetuple().tm_yday * 3 + slot     # advances every day
     return WEEK[date.weekday()][slot](seq)
-
