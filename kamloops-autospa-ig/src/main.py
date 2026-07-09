@@ -32,9 +32,14 @@ def resolve_slot(arg):
     return HOUR_TO_SLOT.get(hour, 0)
 
 
+def _slot_arg(v):
+    v = (v or "").strip()
+    return int(v) if v.isdigit() else None
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--slot", type=int, default=None)
+    ap.add_argument("--slot", type=_slot_arg, default=None)
     ap.add_argument("--out", default=None)
     args = ap.parse_args()
 

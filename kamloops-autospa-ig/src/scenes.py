@@ -345,13 +345,6 @@ def scene_van_arrival(dur=8.5, env=None, t_off=0.0):
     draw_tracked(dt, (W/2, 400), "Mobile detailing, right in your driveway.",
                  font("semibold", 42), COLORS["text"], tracking=1, anchor="m")
 
-    kit = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    kt = ImageDraw.Draw(kit)
-    chip(kt, W/2, 1580, "THE FULL SETUP — IN EVERY VAN", font("bold", 40),
-         bg=(12, 18, 28), fg=ACCENT, tracking=4)
-    draw_tracked(kt, (W/2, 1670), "Sprays · Vacuum · Steam · Ready to go",
-                 font("semibold", 38), COLORS["text"], tracking=1, anchor="m")
-
     dust = []
 
     def gen():
@@ -381,11 +374,6 @@ def scene_van_arrival(dur=8.5, env=None, t_off=0.0):
                 fade = min(1.0, (t - (drive_t - 0.3)) / 0.6)
                 tl = txt.copy(); tl.putalpha(tl.split()[3].point(lambda a: int(a * fade)))
                 fr = Image.alpha_composite(fr.convert("RGBA"), tl).convert("RGB")
-            # kit caption once the door is mostly open
-            if door > 0.55:
-                fade = min(1.0, (door - 0.55) / 0.4)
-                kl = kit.copy(); kl.putalpha(kl.split()[3].point(lambda a: int(a * fade)))
-                fr = Image.alpha_composite(fr.convert("RGBA"), kl).convert("RGB")
             fr = Image.alpha_composite(fr.convert("RGBA"), foot).convert("RGB")
             yield fr
     return gen(), dur
