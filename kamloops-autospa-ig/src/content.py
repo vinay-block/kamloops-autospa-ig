@@ -13,6 +13,7 @@ import os
 import datetime
 from config import BRAND, INTERIOR_TIPS, CAR_PACKAGES, HASHTAGS, CTA_LINES
 import interiors
+import victims
 
 
 def _v(pool, seq):
@@ -257,15 +258,76 @@ def _pairs():
     return [(b[k], a[k]) for k in sorted(set(b) & set(a))]
 
 
+# ---------------------------------------------------------------- FUNNY (daily 3rd video)
+# Rotates with the victim (dog/cat/person). vo = spoken line, cap = on-screen
+# caption (muted autoplay), hook = the Instagram caption opener.
+FUNNY_SCRIPTS = [
+    {"vo": "Nobody booked us to detail a dog today. But he walked up, sat down, and gave us the look. So… full foam treatment it is. Honestly? Best client we've had all week. We do cars too, we promise.",
+     "cap": "Nobody booked the dog. The dog booked himself. 🐶✨",
+     "hook": "Best client we've had all week, honestly. 🐶✨"},
+    {"vo": "Here's our three step process. Step one, foam the entire situation. Step two, pressure wash with feeling. Step three, immediately apologize. Results? Ten out of ten. Would absolutely clean again.",
+     "cap": "Foam it. Blast it. Apologize. 10/10. 🧼",
+     "hook": "The three-step process nobody agreed to. 😅"},
+    {"vo": "The customer said, it's really not that dirty. Reader… it was that dirty. So we did what we do best. Foam cannon, full power. You are very welcome, and also, we're very sorry.",
+     "cap": "\"It's not THAT dirty.\" Reader: it was. 👀",
+     "hook": "When you swear it's 'not that dirty' 👀"},
+    {"vo": "At Kamloops AutoSpa, everyone gets the luxury interior treatment. Cars, boats, and apparently, whoever's standing closest to the van. Full foam, full detail, zero survivors of dirt. No refunds on the sparkle.",
+     "cap": "Everyone gets the VIP foam. No survivors. 🧼",
+     "hook": "VIP treatment, whether you booked it or not. 🧼"},
+    {"vo": "Public safety announcement. Do not, I repeat, do not stand near the AutoSpa van looking even slightly dusty. Our foam cannon has a mind of its own. This could happen to you. And yes… we come to you.",
+     "cap": "PSA: don't stand near the van looking dusty. 🚐💦",
+     "hook": "Consider this your only warning. 🚐💦"},
+    {"vo": "The process is simple. You foam it. You blast it. You stand back and watch it sparkle. That is the Kamloops AutoSpa way, and we apply it to absolutely everything, invited or not.",
+     "cap": "Foam it. Blast it. Sparkle. ✨",
+     "hook": "The Kamloops AutoSpa way. ✨"},
+    {"vo": "P O V. You booked a nice quiet car detail, and the family cat decided she wasn't getting enough attention. Don't worry. We are professionals. We handled it. She's furious, but she's clean.",
+     "cap": "The cat felt left out. We fixed that. 😼",
+     "hook": "She's furious. But she's clean. 😼"},
+    {"vo": "Some heroes wear capes. Ours wears a Kamloops AutoSpa cap and holds a foam cannon like it owes him money. Nobody's dust is safe. Nobody's. Book your detail before he finds your car.",
+     "cap": "Not all heroes wear capes. Some hold foam cannons. 🦸",
+     "hook": "Not all heroes wear capes. 🦸💦"},
+    {"vo": "Today's Kamloops forecast. One hundred percent chance of foam, with scattered sparkle in the afternoon. Bring an umbrella. Or don't, and let us handle it. We come to you either way.",
+     "cap": "Today's forecast: 100% foam, scattered sparkle. 🌧️✨",
+     "hook": "Weather update from the AutoSpa van. 🌧️✨"},
+    {"vo": "We have a strict company policy. We do not do half jobs. Not on cars, not on boats, and definitely not on whoever wandered too close during setup. If it moves, it sparkles. Book yours.",
+     "cap": "We don't do half jobs. Even the surprise ones. 💦",
+     "hook": "Commitment issues? Never met her. 💦"},
+    {"vo": "Detailing skill level, absolute expert. Asking-for-permission skill level, we're still working on that one. But look at this shine. Can you even be mad? Book your car, we'll be gentle. Probably.",
+     "cap": "Detailing: expert. Consent: work in progress. 😂",
+     "hook": "Full send. We'll be gentle. Probably. 😂🧼"},
+    {"vo": "Before, a complete disaster. After, an absolute runway model. This is our specialty, and frankly, this is art. We charge extra for the confidence they leave with. Your car is next.",
+     "cap": "Before: disaster. After: runway model. 💅",
+     "hook": "The glow-up is REAL. 💅✨"},
+    {"vo": "Warning, the foam cannon does not check appointments. If you're dirty and you're nearby, that's basically a booking. It's science. It's also our favorite part of the job. See you soon, Kamloops.",
+     "cap": "Dirty + nearby = basically a booking. It's science. 🧪",
+     "hook": "The foam cannon doesn't check appointments. 🧪💦"},
+]
+
+
+def funny_wash(seq):
+    kind = victims.VICTIMS[seq % len(victims.VICTIMS)]
+    sc = FUNNY_SCRIPTS[seq % len(FUNNY_SCRIPTS)]
+    return {
+        "id": "funny_wash",
+        "segments": [
+            {"type": "funny", "kind": kind, "caption": sc["cap"], "vo": sc["vo"]},
+            {"type": "outro", "line": "Your car's next — DM to book. 🚗",
+             "vo": "We do cars too. Message us to book your mobile detail in Kamloops."},
+        ],
+        "caption": _caption(sc["hook"],
+                            "😂 Mobile car & boat detailing in Kamloops — we actually come to you."),
+    }
+
+
 # ---------------------------------------------------------------- rotation
 WEEK = {
-    0: [action_vacuum_steam, host_tip,            before_after],
-    1: [instruction_3step,   action_spray_shine,  promo_price],
-    2: [before_after,        mascot_tip,          action_vacuum_steam],
-    3: [action_spray_shine,  host_tip,            before_after],
-    4: [instruction_3step,   action_vacuum_steam, promo_price],
-    5: [before_after,        action_spray_shine,  mascot_tip],
-    6: [host_tip,            action_vacuum_steam, before_after],
+    0: [action_vacuum_steam, host_tip,            funny_wash],
+    1: [instruction_3step,   action_spray_shine,  funny_wash],
+    2: [before_after,        mascot_tip,          funny_wash],
+    3: [action_spray_shine,  host_tip,            funny_wash],
+    4: [instruction_3step,   action_vacuum_steam, funny_wash],
+    5: [before_after,        action_spray_shine,  funny_wash],
+    6: [host_tip,            action_vacuum_steam, funny_wash],
 }
 
 

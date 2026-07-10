@@ -36,6 +36,7 @@ _TIMING = {
     "host_talk": (5.0, 0.6),
     "before_after": (6.5, 1.0),
     "before_after_auto": (6.5, 1.0),
+    "funny": (22.0, 1.0),
     "intro":     (3.4, 0.5),
     "outro":     (4.0, 0.8),
 }
@@ -62,6 +63,8 @@ def _scene(seg, dur, env):
     if t == "host_talk":
         return scenes.scene_host_talk(seg.get("title", ""), seg.get("caption", ""),
                                       dur, env=env)[0]
+    if t == "funny":
+        return scenes.scene_funny_wash(seg["kind"], seg["caption"], dur, env=env)[0]
     if t == "before_after_auto":
         return scenes.scene_before_after_auto(seg.get("zone", "seat"), seg.get("seed", 0),
                                               seg.get("title"), seg.get("caption"),

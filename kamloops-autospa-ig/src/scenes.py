@@ -249,6 +249,154 @@ def _as_img(x):
     return x if hasattr(x, "size") else _I.open(x)
 
 
+def _funny_overlay(caption, q, vic_center):
+    lay = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(lay)
+    chip(d, W/2, 130, "KAMLOOPS AUTOSPA", font("bold", 34),
+         bg=(20, 26, 38), fg=ACCENT, tracking=6)
+    # bottom caption (the funny line)
+    fnt = font("black", 54)
+    lines = wrap(d, caption, fnt, W - 150)
+    by = H - 470
+    d.rounded_rectangle([60, by-40, W-60, by+len(lines)*66+26], radius=32, fill=(6, 12, 22, 205))
+    y = by
+    for ln in lines:
+        draw_tracked(d, (W/2, y), ln, fnt, COLORS["text"], tracking=1, anchor="m")
+        y += 66
+    # reveal stamp
+    if q > 0.74:
+        f2 = min(1.0, (q-0.74)/0.1)
+        s = font("black", 84)
+        draw_tracked(d, (vic_center[0], vic_center[1]-120), "10/10", s,
+                     ACCENT, tracking=2, anchor="m")
+    return lay
+
+
+def scene_funny_wash(kind, caption, dur=22.0, env=None, t_off=0.0):
+    """Daily comedy: victim runs in, gets foam-cannoned + pressure-washed by the
+    host, shakes off the water, then struts out sparkling. Rotates via recipe."""
+    import character, random as _r
+    from PIL import ImageOps
+    scale = {"dog": 0.95, "cat": 0.95, "person": 0.78}.get(kind, 0.9)
+    n = int(dur * FPS)
+    fx, fy = 95, 1200                      # victim rest position (well LEFT of cannon)
+
+    host = character.host_frame(0.35, 0, 0, 0, pose="wash")
+    clean_s, anchor = character.victim_sprite(kind, scale)
+    dirty_s = clean_s.copy()
+    dd = ImageDraw.Draw(dirty_s, "RGBA"); rnd = _r.Random(9)
+    px = clean_s.load()
+    for _ in range(150):
+        x = rnd.randint(0, clean_s.width-1); y = rnd.randint(0, clean_s.height-1)
+        if px[x, y][3] > 60:
+            r = rnd.randint(3, 8); dd.ellipse([x, y, x+r, y+r], fill=(92, 66, 40, 210))
+
+    tip = character.CANNON_TIP
+    foam, water, spark, fling = [], [], [], []
+    rp = _r.Random(3)
+    # phase fractions
+    ENTER, SETUP, FOAM, WASH, SHAKE = 0.12, 0.20, 0.46, 0.66, 0.77
+
+    def vic_state(q, t):
+        """return (x, y, angle) of the victim feet — personality per character."""
+        if q < ENTER:                       # everyone trots in from far left
+            p = bk.ease(q / ENTER)
+            return -180 + (fx+180)*p, fy - abs(math.sin(p*4*math.pi))*70, math.sin(p*26)*5
+
+        if kind == "dog":                   # DOG: zoomies + huge shake + victory laps
+            if q < SETUP:  return fx + math.sin(t*5)*80, fy - abs(math.sin(t*10))*46, math.sin(t*8)*9
+            if q < FOAM:   return fx + math.sin(t*22)*14, fy - abs(math.sin(t*9))*16, math.sin(t*20)*7
+            if q < WASH:   return fx + math.sin(t*9)*8, fy + math.sin(t*6)*5, math.sin(t*22)*9
+            if q < SHAKE:  return fx, fy, math.sin(t*52)*19
+            return fx + 50 + math.sin(t*3)*115, fy - abs(math.sin(t*6))*62, math.sin(t*5)*9
+
+        if kind == "cat":                   # CAT: cautious, then tries to bolt, grumpy
+            if q < SETUP:  return fx + math.sin(t*1.4)*22, fy - abs(math.sin(t*3))*8, math.sin(t*2)*2
+            if q < FOAM:   return fx - 8 + math.sin(t*26)*8, fy - 14, math.sin(t*10)*11
+            if q < WASH:                    # lunges to escape left, gets pulled back
+                esc = (math.sin(t*3.2)*0.5 + 0.5)
+                return fx - esc*95, fy - abs(math.sin(t*8))*10, -math.sin(t*24)*11
+            if q < SHAKE:  return fx, fy, math.sin(t*46)*13
+            return fx + math.sin(t*1.5)*26, fy - abs(math.sin(t*3))*16, math.sin(t*2)*3
+
+        # PERSON: confident stroll, dramatic recoil, then snapping model poses
+        if q < SETUP:  return fx + math.sin(t*2)*30, fy - abs(math.sin(t*4))*10, math.sin(t*2)*2
+        if q < FOAM:   return fx + 8, fy - 6, math.sin(t*6)*9
+        if q < WASH:   return fx + math.sin(t*8)*6, fy + math.sin(t*6)*5, math.sin(t*16)*8
+        if q < SHAKE:  return fx, fy, math.sin(t*40)*12
+        pose = int(t*2) % 3                 # hold/snap between poses
+        return fx + [-22, 22, 0][pose], fy - 34, [-13, 13, 0][pose]
+
+    def gen():
+        for i in range(n):
+            t = i / FPS; q = t / dur
+            vx, vy, va = vic_state(q, t)
+            vcx, vcy = vx, vy - int(anchor[1]*0.55)     # rough victim center
+            bob = int(math.sin(t*2)*8)
+            # host stays planted so the cannon stays to the victim's RIGHT;
+            # spray origin only follows the vertical bob.
+            hdx = 0
+            tipf = (tip[0], tip[1] + bob)
+
+            ang0 = math.atan2(vcy - tipf[1], vcx - tipf[0])
+            if SETUP <= q < FOAM and len(foam) < 340:
+                for _ in range(9):
+                    a = ang0 + rp.uniform(-0.45, 0.45); sp = rp.uniform(340, 620)
+                    foam.append([tipf[0], tipf[1], math.cos(a)*sp, math.sin(a)*sp, 0.0, rp.uniform(20, 42)])
+            if FOAM <= q < WASH:
+                for _ in range(8):
+                    a = ang0 + rp.uniform(-0.2, 0.2)
+                    water.append([tipf[0], tipf[1], math.cos(a)*820, math.sin(a)*820, 0.0])
+            if WASH <= q < SHAKE and i % 2 == 0:         # water flinging off in the shake
+                for _ in range(5):
+                    a = rp.uniform(-math.pi, 0)
+                    fling.append([vcx, vcy, math.cos(a)*rp.uniform(200, 480), math.sin(a)*rp.uniform(200, 480), 0.0])
+            if q >= SHAKE and i % 2 == 0:
+                spark.append([vcx+rp.uniform(-110, 110), vcy+rp.uniform(-150, 130), 0.0])
+
+            for f in foam:
+                if f[4] < 0.3:
+                    f[0] += f[2]/FPS; f[1] += f[3]/FPS
+                f[4] += 1/FPS
+            if q >= WASH:
+                foam.clear()
+            for arr, life, grav in ((water, 0.45, 0), (fling, 0.6, 1200)):
+                for w_ in arr:
+                    w_[4] += 1/FPS
+                    if grav:
+                        w_[3] += grav/FPS
+                    w_[0] += w_[2]/FPS; w_[1] += w_[3]/FPS
+                arr[:] = [w_ for w_ in arr if w_[4] < life]
+            for s in spark:
+                s[2] += 1/FPS
+            spark[:] = [s for s in spark if s[2] < 0.8]
+
+            fr = background().convert("RGBA")
+            sprite = dirty_s if q < WASH else clean_s
+            if va:
+                sprite = sprite.rotate(va, center=anchor, resample=Image.BILINEAR, expand=False)
+            vlayer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+            vlayer.paste(sprite, (int(vx-anchor[0]), int(vy-anchor[1])), sprite)
+            fr = Image.alpha_composite(fr, vlayer)
+
+            hl = Image.new("RGBA", (W, H), (0, 0, 0, 0)); hl.paste(host, (hdx, bob), host)
+            fr = Image.alpha_composite(fr, hl)
+
+            d = ImageDraw.Draw(fr, "RGBA")
+            for f in foam:
+                r = f[5]; d.ellipse([f[0]-r, f[1]-r, f[0]+r, f[1]+r], fill=(248, 251, 255, 240))
+            for w_ in water + fling:
+                d.ellipse([w_[0]-5, w_[1]-5, w_[0]+5, w_[1]+5], fill=(120, 210, 240, 220))
+            for s in spark:
+                a = int(255*math.sin(math.pi*s[2]/0.8)); r = 14
+                d.line([s[0]-r, s[1], s[0]+r, s[1]], fill=(255, 255, 255, a), width=5)
+                d.line([s[0], s[1]-r, s[0], s[1]+r], fill=(255, 255, 255, a), width=5)
+
+            fr = Image.alpha_composite(fr, _funny_overlay(caption, q, (vcx, vcy))).convert("RGB")
+            yield fr
+    return gen(), dur
+
+
 def scene_before_after(before_path, after_path, title="REAL RESULTS",
                        caption="Swipe-worthy interior transformation.",
                        dur=7.0, env=None, t_off=0.0):

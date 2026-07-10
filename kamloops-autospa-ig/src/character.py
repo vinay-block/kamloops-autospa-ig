@@ -39,19 +39,33 @@ def _logo(cx, cy, w):
             f'x="{cx-w/2}" y="{cy-h/2}" width="{w}" height="{h}"/>')
 
 
-def host_svg(mouth=0.0, blink=0.0, arm=0.0, bob=0.0, hand_item=""):
+CANNON_TIP = (180, 1040)   # where foam/water sprays from in 'wash' pose
+
+def host_svg(mouth=0.0, blink=0.0, arm=0.0, bob=0.0, hand_item="", pose="idle"):
     eye_ry = 26 * (1 - blink) + 3
     mouth_ry = 8 + mouth * 40
+    gaze = -16 if pose == "wash" else 0        # look toward the victim (left)
+    if pose == "wash":
+        left_arm = f'''
+  <line x1="400" y1="1215" x2="336" y2="1132" stroke="{TEE}" stroke-width="80" stroke-linecap="round"/>
+  <line x1="336" y1="1132" x2="300" y2="1064" stroke="{SKIN}" stroke-width="58" stroke-linecap="round"/>
+  <circle cx="298" cy="1058" r="34" fill="{SKIN}"/>
+  <rect x="286" y="1048" width="30" height="54" rx="8" fill="#26303f"/>
+  <rect x="196" y="1028" width="128" height="36" rx="10" fill="#1b2740" transform="rotate(-8 260 1046)"/>
+  <rect x="300" y="1006" width="44" height="34" rx="8" fill="#22d3ee"/>
+  <rect x="168" y="1030" width="30" height="34" rx="7" fill="{GOLD}" transform="rotate(-8 183 1047)"/>'''
+    else:
+        left_arm = f'''
+  <line x1="360" y1="1215" x2="298" y2="1352" stroke="{TEE}" stroke-width="80" stroke-linecap="round"/>
+  <line x1="298" y1="1352" x2="322" y2="1482" stroke="{SKIN}" stroke-width="60" stroke-linecap="round"/>
+  <circle cx="328" cy="1500" r="40" fill="{SKIN}"/>'''
     return f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}">
 <g transform="translate(0,{bob})">
   <path d="M 300 1520 Q 300 1160 540 1140 Q 780 1160 780 1520 Z" fill="{TEE}"/>
   <path d="M 540 1140 Q 780 1160 780 1520 L 660 1520 Q 660 1220 540 1180 Z" fill="{TEE_SH}"/>
   <path d="M 450 1170 Q 540 1240 630 1170" fill="none" stroke="{TEE_HI}" stroke-width="14"/>
   <rect x="492" y="1050" width="96" height="130" rx="40" fill="{SKIN_SH}"/>
-  <!-- arms: tee sleeve + skin forearm + hand, resting naturally at the sides -->
-  <line x1="360" y1="1215" x2="298" y2="1352" stroke="{TEE}" stroke-width="80" stroke-linecap="round"/>
-  <line x1="298" y1="1352" x2="322" y2="1482" stroke="{SKIN}" stroke-width="60" stroke-linecap="round"/>
-  <circle cx="328" cy="1500" r="40" fill="{SKIN}"/>
+  {left_arm}
   <line x1="720" y1="1215" x2="782" y2="1352" stroke="{TEE}" stroke-width="80" stroke-linecap="round"/>
   <line x1="782" y1="1352" x2="758" y2="1482" stroke="{SKIN}" stroke-width="60" stroke-linecap="round"/>
   <circle cx="752" cy="1500" r="40" fill="{SKIN}"/>
@@ -64,8 +78,8 @@ def host_svg(mouth=0.0, blink=0.0, arm=0.0, bob=0.0, hand_item=""):
   <path d="M 548 796 q 40 -18 80 4" stroke="{BEARD}" stroke-width="16" fill="none" stroke-linecap="round"/>
   <ellipse cx="492" cy="852" rx="30" ry="{eye_ry}" fill="#fff"/>
   <ellipse cx="588" cy="852" rx="30" ry="{eye_ry}" fill="#fff"/>
-  <circle cx="500" cy="856" r="{13*(1-blink)+1}" fill="#1a2230"/>
-  <circle cx="596" cy="856" r="{13*(1-blink)+1}" fill="#1a2230"/>
+  <circle cx="{500+gaze}" cy="856" r="{13*(1-blink)+1}" fill="#1a2230"/>
+  <circle cx="{596+gaze}" cy="856" r="{13*(1-blink)+1}" fill="#1a2230"/>
   <path d="M 540 858 q -14 40 -4 58 q 8 10 22 4" fill="none" stroke="{SKIN_SH}" stroke-width="10" stroke-linecap="round"/>
   <ellipse cx="540" cy="952" rx="46" ry="{mouth_ry}" fill="#5b2f2a"/>
   <path d="M 500 948 q 40 26 80 0" stroke="#5b2f2a" stroke-width="8" fill="none" stroke-linecap="round" opacity="{0 if mouth>0.15 else 1}"/>
@@ -82,8 +96,25 @@ def rasterize(svg: str) -> Image.Image:
     return Image.open(io.BytesIO(png)).convert("RGBA")
 
 
-def host_frame(mouth=0.0, blink=0.0, arm=0.0, bob=0.0, hand_item=""):
-    return rasterize(host_svg(mouth, blink, arm, bob, hand_item))
+def host_frame(mouth=0.0, blink=0.0, arm=0.0, bob=0.0, hand_item="", pose="idle"):
+    return rasterize(host_svg(mouth, blink, arm, bob, hand_item, pose))
+
+
+def victim_frame(kind, cx, cy, scale=1.0, wobble=0.0):
+    import victims
+    svg = (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}">'
+           f'{victims.victim_svg(kind, cx, cy, scale, wobble)}</svg>')
+    return rasterize(svg)
+
+
+def victim_sprite(kind, scale=1.0):
+    """Return (tight RGBA sprite, feet_anchor) for free positioning/animation."""
+    ref = (W // 2, int(H * 0.72))
+    img = victim_frame(kind, ref[0], ref[1], scale)
+    bb = img.getbbox()
+    sprite = img.crop(bb)
+    anchor = (ref[0] - bb[0], ref[1] - bb[1])   # feet point inside the sprite
+    return sprite, anchor
 
 
 # ------------------------------------------------------------------ VAN
