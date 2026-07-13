@@ -24,8 +24,10 @@ TEE = "#182233"; TEE_SH = "#0f1826"; TEE_HI = "#20304a"
 CAP = "#0b1220"; CAP_SH = "#060a12"; BEARD = "#3a2a1c"
 
 if os.path.exists(_LOGO_PATH):
-    _LOGO_B64 = base64.b64encode(open(_LOGO_PATH, "rb").read()).decode()
-    _LW, _LH = Image.open(_LOGO_PATH).size
+    with open(_LOGO_PATH, "rb") as _f:
+        _LOGO_B64 = base64.b64encode(_f.read()).decode()
+    with Image.open(_LOGO_PATH) as _im:
+        _LW, _LH = _im.size
     _AR = _LH / _LW
 else:                       # graceful fallback if logo missing
     _LOGO_B64, _AR = None, 0.5
@@ -244,37 +246,149 @@ def van_frame(cx, wheel_ang, ground=1250, beam=True, door=0.0):
     return rasterize(van_svg(cx, wheel_ang, ground, beam, door))
 
 
-def driveway_bg():
-    """Static DAYTIME driveway + house. Sky is deeper up top so overlaid
-    white text stays readable, brighter toward the horizon."""
+SCENERY_COUNT = 8
+
+
+def driveway_bg(variant=0, life=0, bird_phase=0.0):
+    """Daytime location backgrounds. `variant` rotates the environment so the
+    same scene doesn't always sit in the same driveway.
+        0 suburban house  1 golden hour  2 commercial lot
+        3 lakeside cabin + pines  4 modern home, overcast
+    `life` seeds ambient props (parked cars, boats, people, pets, birds, trees).
+    """
+    import ambience
+    v = int(variant) % SCENERY_COUNT
+    if v == 1:
+        sky = ('<stop offset="0" stop-color="#3b4a7a"/><stop offset="0.45" stop-color="#e08a52"/>'
+               '<stop offset="0.62" stop-color="#f6c07a"/>')
+        sun = ('<circle cx="820" cy="820" r="220" fill="#ffd9a0" opacity="0.35"/>'
+               '<circle cx="820" cy="820" r="110" fill="#ffe9bd"/>')
+        ground, ground_hi = "#3f6b46", "#4c7d52"
+        house, roof, wall = "#d9cdbd", "#8f4234", "#c8bcac"
+        drive, drive_hi = "#8e969f", "#a6aeb8"
+        extra = ""
+    elif v == 2:
+        sky = ('<stop offset="0" stop-color="#3a7ec0"/><stop offset="0.55" stop-color="#8fc4ea"/>'
+               '<stop offset="0.62" stop-color="#c5e2f7"/>')
+        sun = '<circle cx="860" cy="300" r="90" fill="#fff3c8"/>'
+        ground, ground_hi = "#6f7681", "#7d848f"
+        house, roof, wall = "#b9c3cc", "#7d8894", "#aab4be"
+        drive, drive_hi = "#7d848f", "#949ba6"
+        extra = ('<rect x="120" y="1090" width="18" height="120" fill="#5b6470"/>'
+                 '<rect x="940" y="1090" width="18" height="120" fill="#5b6470"/>'
+                 '<rect x="300" y="1246" width="480" height="8" fill="#e8eef5" opacity="0.6"/>')
+    elif v == 3:
+        sky = ('<stop offset="0" stop-color="#2f74b8"/><stop offset="0.55" stop-color="#86c1ea"/>'
+               '<stop offset="0.62" stop-color="#c7e6ff"/>')
+        sun = '<circle cx="240" cy="280" r="80" fill="#fff3c8"/>'
+        ground, ground_hi = "#4a8a55", "#579b62"
+        house, roof, wall = "#9c7449", "#6b4a2c", "#8a6640"
+        drive, drive_hi = "#9aa3ad", "#b4bcc6"
+        extra = "".join(
+            f'<polygon points="{x},1060 {x-46},1180 {x+46},1180" fill="#2f5e3a"/>'
+            f'<polygon points="{x},1000 {x-38},1100 {x+38},1100" fill="#376d44"/>'
+            f'<rect x="{x-8}" y="1170" width="16" height="30" fill="#4a3a26"/>'
+            for x in (110, 210, 980))
+    elif v == 4:
+        sky = ('<stop offset="0" stop-color="#5b7c96"/><stop offset="0.55" stop-color="#a9c0d2"/>'
+               '<stop offset="0.62" stop-color="#cfdde8"/>')
+        sun = '<circle cx="700" cy="330" r="150" fill="#e8f1f7" opacity="0.5"/>'
+        ground, ground_hi = "#5f8a5f", "#6c986c"
+        house, roof, wall = "#e9e9e6", "#3b4149", "#d8d8d4"
+        drive, drive_hi = "#9fa6ad", "#b8bfc6"
+        extra = ""
+    elif v == 5:            # early morning mist, mountains
+        sky = ('<stop offset="0" stop-color="#7d9dc0"/><stop offset="0.5" stop-color="#c9dced"/>'
+               '<stop offset="0.62" stop-color="#e6eef5"/>')
+        sun = ('<circle cx="300" cy="360" r="150" fill="#fff0cf" opacity="0.45"/>'
+               '<circle cx="300" cy="360" r="70" fill="#fff8e4"/>')
+        ground, ground_hi = "#5c8f62", "#6a9e70"
+        house, roof, wall = "#dcd6cb", "#7d5348", "#cbc5ba"
+        drive, drive_hi = "#a3aab2", "#bcc2ca"
+        extra = ('<polygon points="0,1040 180,830 360,1040" fill="#8aa2b8" opacity="0.55"/>'
+                 '<polygon points="240,1040 470,780 700,1040" fill="#7c95ad" opacity="0.5"/>'
+                 '<polygon points="620,1040 860,840 1080,1040" fill="#8aa2b8" opacity="0.45"/>')
+    elif v == 6:            # after rain — wet driveway, puddles
+        sky = ('<stop offset="0" stop-color="#4a6b8a"/><stop offset="0.5" stop-color="#9db6c9"/>'
+               '<stop offset="0.62" stop-color="#c3d4e0"/>')
+        sun = '<circle cx="760" cy="330" r="140" fill="#e8f1f7" opacity="0.4"/>'
+        ground, ground_hi = "#4d8355", "#5b9463"
+        house, roof, wall = "#ded6c9", "#6f4f45", "#cec6b9"
+        drive, drive_hi = "#6f7push", "#8c949d"
+        drive, drive_hi = "#6f7681", "#8c949d"
+        extra = ('<ellipse cx="380" cy="1230" rx="120" ry="26" fill="#b9d2e2" opacity="0.55"/>'
+                 '<ellipse cx="700" cy="1270" rx="150" ry="30" fill="#b9d2e2" opacity="0.45"/>'
+                 '<ellipse cx="540" cy="1150" rx="80" ry="16" fill="#c8dcea" opacity="0.4"/>')
+    elif v == 7:            # dusk / blue hour with warm windows
+        sky = ('<stop offset="0" stop-color="#1e2c50"/><stop offset="0.5" stop-color="#5a6f9c"/>'
+               '<stop offset="0.62" stop-color="#8f9dbd"/>')
+        sun = '<circle cx="180" cy="700" r="120" fill="#f6b46a" opacity="0.35"/>'
+        ground, ground_hi = "#3a5f45", "#456d50"
+        house, roof, wall = "#b9b0a4", "#5f4038", "#a9a094"
+        drive, drive_hi = "#6a707a", "#7e848e"
+        extra = ""
+    else:
+        sky = ('<stop offset="0" stop-color="#2f74b8"/><stop offset="0.55" stop-color="#7fbbe8"/>'
+               '<stop offset="0.62" stop-color="#bfe3ff"/>')
+        sun = ('<circle cx="850" cy="300" r="180" fill="#ffe9a8" opacity="0.28"/>'
+               '<circle cx="850" cy="300" r="90" fill="#fff3c8"/>')
+        ground, ground_hi = "#4f9d55", "#5cb063"
+        house, roof, wall = "#e7ddcf", "#b6523f", "#cfc4b4"
+        drive, drive_hi = "#9aa3ad", "#b4bcc6"
+        extra = ""
+
+    clouds = ""
+    if v not in (1, 7):
+        op = 0.55 if v == 4 else 0.9
+        clouds = (f'<g fill="#ffffff" opacity="{op}">'
+                  f'<ellipse cx="250" cy="360" rx="120" ry="46"/><ellipse cx="330" cy="340" rx="90" ry="40"/>'
+                  f'<ellipse cx="620" cy="520" rx="110" ry="42"/><ellipse cx="700" cy="505" rx="80" ry="36"/></g>')
+    stars = ""
+    if v in (1, 7):
+        col = "#ffe9c0" if v == 1 else "#dfe7ff"
+        stars = "".join(
+            f'<circle cx="{(i*151)%W}" cy="{(i*67)%340+40}" r="{2 if i%3 else 3}" fill="{col}" opacity="0.55"/>'
+            for i in range(26))
+
+    # ---- ATMOSPHERIC EFFECTS ----
+    fx = ""
+    if v in (0, 1, 5):                      # god rays from the sun
+        sx, sy = (850, 300) if v == 0 else ((820, 820) if v == 1 else (300, 360))
+        fx += "".join(
+            f'<polygon points="{sx},{sy} {sx-500+i*260},1040 {sx-380+i*260},1040" '
+            f'fill="#fff6d8" opacity="0.07"/>' for i in range(5))
+    if v in (1, 5, 7):                      # horizon haze band
+        haze = "#ffd9a0" if v == 1 else ("#e9f1f7" if v == 5 else "#8f9dbd")
+        fx += (f'<rect x="0" y="900" width="{W}" height="180" fill="{haze}" opacity="0.28"/>')
+    if v == 1:                              # warm lens flare
+        fx += ('<circle cx="640" cy="640" r="40" fill="#ffd6a0" opacity="0.20"/>'
+               '<circle cx="520" cy="520" r="24" fill="#ffe9c8" opacity="0.16"/>'
+               '<circle cx="400" cy="420" r="14" fill="#fff3d8" opacity="0.12"/>')
+    if v == 6:                              # wet-driveway sheen
+        fx += ('<rect x="120" y="1050" width="840" height="250" fill="#cfe3f0" opacity="0.12"/>')
+    if v == 7:                              # glowing windows at dusk
+        fx += ('<rect x="620" y="720" width="96" height="120" rx="6" fill="#ffd98a" opacity="0.85"/>'
+               '<rect x="770" y="720" width="96" height="120" rx="6" fill="#ffcf72" opacity="0.7"/>'
+               '<circle cx="668" cy="780" r="90" fill="#ffd98a" opacity="0.12"/>')
+
+    amb = ambience.ambience(seed=life, scenery=v, bird_phase=bird_phase)
+
     svg = f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}">
-<defs>
- <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
-   <stop offset="0" stop-color="#2f74b8"/><stop offset="0.55" stop-color="#7fbbe8"/>
-   <stop offset="0.62" stop-color="#bfe3ff"/>
- </linearGradient>
-</defs>
+<defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">{sky}</linearGradient></defs>
 <rect width="{W}" height="{H}" fill="url(#sky)"/>
-<!-- sun + glow -->
-<circle cx="850" cy="300" r="180" fill="#ffe9a8" opacity="0.28"/>
-<circle cx="850" cy="300" r="90" fill="#fff3c8"/>
-<!-- clouds -->
-<g fill="#ffffff" opacity="0.9">
-  <ellipse cx="250" cy="360" rx="120" ry="46"/><ellipse cx="330" cy="340" rx="90" ry="40"/>
-  <ellipse cx="620" cy="520" rx="110" ry="42"/><ellipse cx="700" cy="505" rx="80" ry="36"/>
-</g>
-<!-- grass -->
-<rect x="0" y="1040" width="{W}" height="880" fill="#4f9d55"/>
-<rect x="0" y="1040" width="{W}" height="26" fill="#5cb063"/>
-<!-- house -->
-<rect x="560" y="640" width="440" height="410" fill="#e7ddcf"/>
-<polygon points="536,640 780,470 1024,640" fill="#b6523f"/>
+{stars}{sun}{clouds}
+<rect x="0" y="1040" width="{W}" height="880" fill="{ground}"/>
+<rect x="0" y="1040" width="{W}" height="26" fill="{ground_hi}"/>
+{extra}
+<rect x="560" y="640" width="440" height="410" fill="{house}"/>
+<polygon points="536,640 780,470 1024,640" fill="{roof}"/>
 <rect x="620" y="720" width="96" height="120" rx="6" fill="#8fd0f5" stroke="#ffffff" stroke-width="8"/>
 <rect x="770" y="720" width="96" height="120" rx="6" fill="#8fd0f5" stroke="#ffffff" stroke-width="8"/>
 <rect x="636" y="900" width="120" height="150" fill="#7a5233"/>
-<rect x="850" y="880" width="150" height="170" rx="6" fill="#cfc4b4" stroke="#ffffff" stroke-width="6"/>
-<!-- driveway -->
-<polygon points="120,1300 960,1300 812,1050 300,1050" fill="#9aa3ad"/>
-<polygon points="300,1050 812,1050 806,1064 306,1064" fill="#b4bcc6"/>
+<rect x="850" y="880" width="150" height="170" rx="6" fill="{wall}" stroke="#ffffff" stroke-width="6"/>
+<polygon points="120,1300 960,1300 812,1050 300,1050" fill="{drive}"/>
+<polygon points="300,1050 812,1050 806,1064 306,1064" fill="{drive_hi}"/>
+{amb}
+{fx}
 </svg>'''
     return rasterize(svg).convert("RGB")

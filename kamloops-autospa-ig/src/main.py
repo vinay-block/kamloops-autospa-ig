@@ -17,6 +17,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import content
 import video_builder
 import publish
+import history
 
 # UTC hours the three daily schedules fire at -> slot
 HOUR_TO_SLOT = {15: 0, 20: 1, 1: 2, 0: 2}
@@ -52,6 +53,11 @@ def main():
     print(f"Rendered {path}")
 
     result = publish.publish(path, caption)
+
+    # remember this exact video so it can never be posted again
+    fp = recipe.get("_fingerprint") or history.fingerprint(recipe)
+    n = history.record(fp)
+    print(f"Recorded fingerprint {fp} ({n} videos in history — none will repeat)")
     print("Done:", result)
 
 

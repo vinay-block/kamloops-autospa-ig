@@ -249,10 +249,10 @@ def _as_img(x):
     return x if hasattr(x, "size") else _I.open(x)
 
 
-def _funny_overlay(caption, q, vic_center):
+def _funny_overlay(caption, q, vic_center, title="KAMLOOPS AUTOSPA"):
     lay = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     d = ImageDraw.Draw(lay)
-    chip(d, W/2, 130, "KAMLOOPS AUTOSPA", font("bold", 34),
+    chip(d, W/2, 130, title, font("bold", 34),
          bg=(20, 26, 38), fg=ACCENT, tracking=6)
     # bottom caption (the funny line)
     fnt = font("black", 54)
@@ -272,7 +272,7 @@ def _funny_overlay(caption, q, vic_center):
     return lay
 
 
-def scene_funny_wash(kind, caption, dur=22.0, env=None, t_off=0.0):
+def scene_funny_wash(kind, caption, dur=22.0, env=None, t_off=0.0, title="KAMLOOPS AUTOSPA"):
     """Daily comedy: victim runs in, gets foam-cannoned + pressure-washed by the
     host, shakes off the water, then struts out sparkling. Rotates via recipe."""
     import character, random as _r
@@ -392,7 +392,135 @@ def scene_funny_wash(kind, caption, dur=22.0, env=None, t_off=0.0):
                 d.line([s[0]-r, s[1], s[0]+r, s[1]], fill=(255, 255, 255, a), width=5)
                 d.line([s[0], s[1]-r, s[0], s[1]+r], fill=(255, 255, 255, a), width=5)
 
-            fr = Image.alpha_composite(fr, _funny_overlay(caption, q, (vcx, vcy))).convert("RGB")
+            fr = Image.alpha_composite(fr, _funny_overlay(caption, q, (vcx, vcy), title)).convert("RGB")
+            yield fr
+    return gen(), dur
+
+
+def scene_boat_detail(title, caption, dur=8.0, env=None, t_off=0.0, scenery=3, life=0):
+    """Boat on its trailer IN THE DRIVEWAY being detailed — no trailering needed."""
+    import boat as B
+    from particles import Particles
+    n = int(dur * FPS)
+    bg = B.driveway_boat_bg(scenery, life=life)
+    head = header(title); foot = footer_handle()
+    ps = Particles(seed=11)
+    by = 1180
+
+    def gen():
+        for i in range(n):
+            t = i / FPS; q = t / dur
+            clean = q > 0.5
+            fr = B.draw_boat(bg, 540, by, 1.0, clean=clean, seed=3)
+            # wand sweeping along the hull/interior
+            wx = 300 + (math.sin(t*1.3)*0.5+0.5) * 480
+            wy = by - 40
+            if q < 0.5:
+                ps.emit_spray(wx, wy, n=5, ang=0.15)
+                ps.emit_steam(wx, wy - 20, n=1)
+            elif i % 5 == 0:
+                ps.add_sparkle(wx, wy - 50)
+                ps.add_sparkle(wx - 90, wy - 10)
+            ps.update(1/FPS)
+            fr = ps.draw(fr)
+            d = ImageDraw.Draw(fr)
+            d.line([wx, wy, wx + 60, wy + 200], fill=(40, 48, 64), width=22)
+            d.ellipse([wx-16, wy-14, wx+16, wy+14], fill=ACCENT)
+            fr = Image.alpha_composite(fr.convert("RGBA"), head)
+            fr = Image.alpha_composite(fr, caption_band(caption, min(1, q*1.3)))
+            fr = Image.alpha_composite(fr, foot).convert("RGB")
+            yield fr
+    return gen(), dur
+
+
+def scene_boat_before_after(seed=0, title="BOAT INTERIOR", caption="Mildew, sand & stains — gone.",
+                            dur=7.0, env=None, t_off=0.0):
+    import boat as B
+    px0, py0, px1, py1 = 90, 560, W - 90, 1500
+    clean, dirty = B.boat_interior_pair(px1 - px0, py1 - py0, seed=seed)
+    return scene_before_after(dirty, clean, title, caption, dur=dur, env=env, t_off=t_off)
+
+
+FINDS = [
+    ("🍟", "One lonely fry", "Under the seat. Always."),
+    ("🧦", "A single sock", "Where's the other one? Nobody knows."),
+    ("🪙", "$2.35 in change", "We leave it. We're professionals."),
+    ("🧸", "A forgotten toy", "The kids will be thrilled."),
+    ("☕", "A fossilized coffee", "Archaeology, honestly."),
+    ("🕶️", "Sunglasses (x3)", "You've been looking for these."),
+    ("🍎", "Something… organic", "We'd rather not identify it."),
+    ("🔑", "Keys you gave up on", "You're welcome."),
+]
+
+
+def scene_things_we_find(items, caption, dur=12.0, env=None, t_off=0.0):
+    """Comedy-lite list format: items 'found' in a customer's car, revealed one by one."""
+    n = int(dur * FPS)
+    head = header("THINGS WE FIND IN YOUR CAR")
+    foot = footer_handle()
+    per = dur / (len(items) + 0.6)
+
+    def gen():
+        for i in range(n):
+            t = i / FPS
+            fr = background().convert("RGBA")
+            lay = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+            d = ImageDraw.Draw(lay)
+            y = 430
+            for k, (emo, name, sub) in enumerate(items):
+                appear = k * per
+                if t < appear:
+                    continue
+                a = min(1.0, (t - appear) / 0.45)
+                dy = int((1 - bk.ease(a)) * 40)
+                box = (255 * a)
+                d.rounded_rectangle([110, y - dy, W - 110, y + 150 - dy], radius=28,
+                                    fill=(20, 28, 42, int(215 * a)))
+                d.text((170, y + 32 - dy), emo, font=font("bold", 74),
+                       fill=(255, 255, 255, int(255 * a)))
+                d.text((290, y + 26 - dy), name, font=font("black", 52),
+                       fill=(*COLORS["text"], int(255 * a)))
+                d.text((290, y + 90 - dy), sub, font=font("medium", 34),
+                       fill=(*COLORS["muted"], int(255 * a)))
+                y += 168
+            fr = Image.alpha_composite(fr, lay)
+            fr = Image.alpha_composite(fr, head)
+            fr = Image.alpha_composite(fr, foot).convert("RGB")
+            yield fr
+    return gen(), dur
+
+
+def scene_testimonial(quote, name, dur=8.0, env=None, t_off=0.0):
+    """5-star review card — social proof (you have 34 five-star reviews)."""
+    n = int(dur * FPS)
+    foot = footer_handle()
+    lay = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(lay)
+    chip(d, W/2, 200, "5.0 ★ ON GOOGLE", font("black", 44), bg=(231, 181, 74),
+         fg=(20, 16, 6), tracking=4)
+    d.rounded_rectangle([90, 520, W - 90, 1320], radius=40, fill=(16, 24, 38, 235))
+    draw_tracked(d, (W/2, 590), "★ ★ ★ ★ ★", font("black", 64), (231, 181, 74),
+                 tracking=6, anchor="m")
+    y = 720
+    for ln in wrap(d, f'"{quote}"', font("semibold", 52), W - 260):
+        draw_tracked(d, (W/2, y), ln, font("semibold", 52), COLORS["text"],
+                     tracking=1, anchor="m")
+        y += 70
+    draw_tracked(d, (W/2, y + 40), f"— {name}, Kamloops", font("medium", 40),
+                 COLORS["muted"], tracking=1, anchor="m")
+    chip(d, W/2, 1400, "34 FIVE-STAR REVIEWS", font("bold", 38),
+         bg=(20, 28, 42), fg=ACCENT, tracking=4)
+
+    def gen():
+        for i in range(n):
+            t = i / FPS
+            a = min(1.0, t / 0.7)
+            fr = background().convert("RGBA")
+            l2 = lay.copy()
+            if a < 1:
+                l2.putalpha(l2.split()[3].point(lambda v: int(v * a)))
+            fr = Image.alpha_composite(fr, l2)
+            fr = Image.alpha_composite(fr, foot).convert("RGB")
             yield fr
     return gen(), dur
 
@@ -475,52 +603,84 @@ def _panel_shadow(px0, py0, px1, py1):
     return lay.filter(ImageFilter.GaussianBlur(22))
 
 
-def scene_van_arrival(dur=8.5, env=None, t_off=0.0):
-    """Luxury van drives in, parks, then slides its side door open to reveal
-    the full mobile detailing kit."""
+def scene_van_arrival(dur=8.5, env=None, t_off=0.0, style=0, headline=None, scenery=0, life=0):
+    """Van entrance. `style` selects a distinct visual treatment so the opener
+    isn't identical on every video:
+        0 = drive in from right, park, side door slides open (classic)
+        1 = already parked, slow push-in (zoom) + door opens
+        2 = drives in from the LEFT (mirrored), parks, door opens
+        3 = door-first: opens immediately, camera pans across the kit
+        4 = fast arrival + dust, quick door pop, punchy
+    """
     from character import van_frame, driveway_bg
     n = int(dur * FPS)
-    bg = driveway_bg()
+    bgs = [driveway_bg(scenery, life=life, bird_phase=k*1.6) for k in range(6)]
     ground = 1250
-    x_start, x_end = 1560, 470
-    drive_t = 2.6
-    door_start, door_dur = drive_t + 0.4, 1.6
     foot = footer_handle()
+    style = int(style) % 5
+
+    # per-style motion params
+    if style == 1:                      # already parked, push-in
+        x_start = x_end = 470; drive_t = 0.01; zoom0, zoom1 = 1.0, 1.14
+    elif style == 2:                    # from the left (mirrored)
+        x_start, x_end = -520, 470; drive_t = 2.6; zoom0 = zoom1 = 1.0
+    elif style == 3:                    # door-first, slow pan
+        x_start = x_end = 470; drive_t = 0.01; zoom0, zoom1 = 1.18, 1.0
+    elif style == 4:                    # fast arrival
+        x_start, x_end = 1700, 470; drive_t = 1.7; zoom0 = zoom1 = 1.0
+    else:                               # classic
+        x_start, x_end = 1560, 470; drive_t = 2.6; zoom0 = zoom1 = 1.0
+
+    door_start = drive_t + (0.05 if style == 3 else 0.4)
+    door_dur = 1.2 if style == 4 else 1.6
 
     txt = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     dt = ImageDraw.Draw(txt)
-    chip(dt, W/2, 250, "WE COME TO YOU", font("black", 60), bg=ACCENT, fg=(6, 12, 20), tracking=6)
+    chip(dt, W/2, 250, headline or "WE COME TO YOU", font("black", 60),
+         bg=ACCENT, fg=(6, 12, 20), tracking=6)
     draw_tracked(dt, (W/2, 400), "Mobile detailing, right in your driveway.",
                  font("semibold", 42), COLORS["text"], tracking=1, anchor="m")
 
     dust = []
+    mirrored = (style == 2)
 
     def gen():
         prev_x = x_start
         for i in range(n):
             t = i / FPS
-            cx = x_start + (x_end - x_start) * bk.ease(t / drive_t) if t < drive_t else x_end
-            moved = prev_x - cx
+            cx = (x_start + (x_end - x_start) * bk.ease(min(1.0, t / drive_t))
+                  if t < drive_t else x_end)
+            moved = abs(prev_x - cx); prev_x = cx
             wheel_ang = -(x_start - cx) * 0.5
-            prev_x = cx
             door = min(1.0, max(0.0, (t - door_start) / door_dur))
             if moved > 1.5:
-                dust.append([cx + 470, ground + 20, 0.0])
+                dust.append([cx + (-470 if mirrored else 470), ground + 20, 0.0])
             for dpt in dust:
-                dpt[2] += 1 / FPS; dpt[0] += 30 / FPS
+                dpt[2] += 1/FPS; dpt[0] += (-30 if mirrored else 30)/FPS
             dust[:] = [dd for dd in dust if dd[2] < 0.6]
 
-            fr = bg.copy()
-            fr = Image.alpha_composite(fr.convert("RGBA"),
-                                       van_frame(cx, wheel_ang, ground, door=door)).convert("RGB")
+            van = van_frame(cx if not mirrored else (W - cx), wheel_ang, ground, door=door)
+            if mirrored:
+                van = van.transpose(Image.FLIP_LEFT_RIGHT)
+            bg = bgs[int(t * 6) % len(bgs)]        # birds drift
+            fr = Image.alpha_composite(bg.convert("RGBA"), van).convert("RGB")
+
             d = ImageDraw.Draw(fr, "RGBA")
             for dx, dy, age in dust:
-                a = int(120 * (1 - age / 0.6)); r = 14 + age * 40
+                a = int(120 * (1 - age/0.6)); r = 14 + age*40
                 d.ellipse([dx-r, dy-r, dx+r, dy+r], fill=(150, 140, 120, max(0, a)))
-            # top "we come to you" text after park
+
+            # camera zoom for push-in / pan styles
+            if zoom0 != zoom1:
+                z = zoom0 + (zoom1 - zoom0) * bk.ease(t / dur)
+                zw, zh = int(W*z), int(H*z)
+                big = fr.resize((zw, zh))
+                ox, oy = (zw - W)//2, int((zh - H) * 0.55)
+                fr = big.crop((ox, oy, ox + W, oy + H))
+
             if t > drive_t - 0.3:
                 fade = min(1.0, (t - (drive_t - 0.3)) / 0.6)
-                tl = txt.copy(); tl.putalpha(tl.split()[3].point(lambda a: int(a * fade)))
+                tl = txt.copy(); tl.putalpha(tl.split()[3].point(lambda a: int(a*fade)))
                 fr = Image.alpha_composite(fr.convert("RGBA"), tl).convert("RGB")
             fr = Image.alpha_composite(fr.convert("RGBA"), foot).convert("RGB")
             yield fr

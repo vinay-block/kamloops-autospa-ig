@@ -37,6 +37,10 @@ _TIMING = {
     "before_after": (6.5, 1.0),
     "before_after_auto": (6.5, 1.0),
     "funny": (22.0, 1.0),
+    "boat_detail": (7.5, 1.0),
+    "boat_before_after": (6.5, 1.0),
+    "things_we_find": (12.0, 1.0),
+    "testimonial": (7.0, 0.8),
     "intro":     (3.4, 0.5),
     "outro":     (4.0, 0.8),
 }
@@ -55,7 +59,11 @@ def _pad(src, dur, dst):
 def _scene(seg, dur, env):
     t = seg["type"]
     if t == "van":
-        return scenes.scene_van_arrival(dur, env=env)[0]
+        return scenes.scene_van_arrival(dur, env=env,
+                                        style=seg.get("style", 0),
+                                        headline=seg.get("headline"),
+                                        scenery=seg.get("scenery", 0),
+                                        life=seg.get("life", 0))[0]
     if t == "vacuum":
         return scenes.scene_vacuum(seg["title"], seg["caption"], dur, env=env)[0]
     if t == "spray":
@@ -63,8 +71,21 @@ def _scene(seg, dur, env):
     if t == "host_talk":
         return scenes.scene_host_talk(seg.get("title", ""), seg.get("caption", ""),
                                       dur, env=env)[0]
+    if t == "boat_detail":
+        return scenes.scene_boat_detail(seg.get("title","BOAT DETAILING"),
+                                        seg.get("caption",""), dur, env=env,
+                                        scenery=seg.get("scenery", 3),
+                                        life=seg.get("life", 0))[0]
+    if t == "boat_before_after":
+        return scenes.scene_boat_before_after(seg.get("seed",0), seg.get("title","BOAT INTERIOR"),
+                                              seg.get("caption",""), dur, env=env)[0]
+    if t == "things_we_find":
+        return scenes.scene_things_we_find(seg["items"], seg.get("caption",""), dur, env=env)[0]
+    if t == "testimonial":
+        return scenes.scene_testimonial(seg["quote"], seg["name"], dur, env=env)[0]
     if t == "funny":
-        return scenes.scene_funny_wash(seg["kind"], seg["caption"], dur, env=env)[0]
+        return scenes.scene_funny_wash(seg["kind"], seg["caption"], dur, env=env,
+                                       title=seg.get("title", "KAMLOOPS AUTOSPA"))[0]
     if t == "before_after_auto":
         return scenes.scene_before_after_auto(seg.get("zone", "seat"), seg.get("seed", 0),
                                               seg.get("title"), seg.get("caption"),
