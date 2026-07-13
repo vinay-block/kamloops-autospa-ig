@@ -2,9 +2,9 @@ name: Daily AutoSpa Posts
 
 on:
   schedule:
-    - cron: "0 15 * * *"
-    - cron: "0 20 * * *"
-    - cron: "0 1  * * *"
+    - cron: "0 15 * * *"    # slot 0 — morning (08:00 Kamloops)
+    - cron: "0 20 * * *"    # slot 1 — midday (13:00 Kamloops)
+    - cron: "0 1  * * *"    # slot 2 — evening (18:00 Kamloops)
   workflow_dispatch:
     inputs:
       slot:
@@ -12,7 +12,7 @@ on:
         default: "0"
 
 permissions:
-  contents: write
+  contents: write            # allows creating the Release that hosts the video
 
 jobs:
   post:
@@ -55,3 +55,16 @@ jobs:
           IG_USER_ID: ${{ secrets.IG_USER_ID }}
           IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
         run: python src/main.py --slot "${SLOT}"
+
+      - name: Save no-repeat history
+        if: success()
+        working-directory: ${{ steps.proj.outputs.dir }}
+        run: |
+          if [ -n "$(git status --porcelain history.json)" ]; then
+            git config user.name  "autospa-bot"
+            git config user.email "bot@users.noreply.github.com"
+            git add history.json
+            git commit -m "history: record posted video [skip ci]"
+            git pull --rebase --autostash || true
+            git push
+          fi
