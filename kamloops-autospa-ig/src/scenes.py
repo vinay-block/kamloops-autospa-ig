@@ -21,7 +21,38 @@ ACCENT = COLORS["accent"]
 
 
 # ---------------------------------------------------------------- overlays
+
+# --------------------------------------------------------------- glyph safety
+# Montserrat has no star/emoji glyphs, so any of those characters render as
+# empty "tofu" boxes. Stars are drawn as vectors, and emoji are stripped from
+# ON-SCREEN text (they still appear in the Instagram caption, which renders
+# them fine).
+def _safe(text):
+    """Remove characters the font can't draw (emoji, stars, symbols)."""
+    if not text:
+        return text
+    out = []
+    for ch in str(text):
+        o = ord(ch)
+        if o > 0x2000 and not (0x2010 <= o <= 0x203A):   # keep dashes/quotes/ellipsis
+            continue
+        out.append(ch)
+    return " ".join("".join(out).split())
+
+
+def _star(d, cx, cy, r, fill, points=5):
+    """Draw a filled 5-point star as a polygon (font-independent)."""
+    import math as _m
+    pts = []
+    for i in range(points * 2):
+        rad = r if i % 2 == 0 else r * 0.46
+        a = -_m.pi / 2 + i * _m.pi / points
+        pts.append((cx + _m.cos(a) * rad, cy + _m.sin(a) * rad))
+    d.polygon(pts, fill=fill)
+
+
 def header(title):
+    title = _safe(title)
     lay = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     d = ImageDraw.Draw(lay)
     chip(d, W / 2, 130, "KAMLOOPS AUTOSPA", font("bold", 34),
@@ -33,6 +64,7 @@ def header(title):
 
 
 def caption_band(text, progress=1.0):
+    text = _safe(text)
     lay = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     d = ImageDraw.Draw(lay)
     fnt = font("bold", 50)
@@ -189,6 +221,7 @@ def scene_spray_steam(title, caption, dur=7.0, env=None, t_off=0.0):
 
 
 def scene_outro(line="Mobile detailing — we come to you.", dur=4.0, env=None, t_off=0.0):
+    line = _safe(line)
     n = int(dur * FPS)
     foot = footer_handle()
     lay = Image.new("RGBA", (W, H), (0, 0, 0, 0))
@@ -250,6 +283,7 @@ def _as_img(x):
 
 
 def _funny_overlay(caption, q, vic_center, title="KAMLOOPS AUTOSPA"):
+    caption = _safe(caption); title = _safe(title)
     lay = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     d = ImageDraw.Draw(lay)
     chip(d, W/2, 130, title, font("bold", 34),
@@ -476,11 +510,13 @@ def scene_things_we_find(items, caption, dur=12.0, env=None, t_off=0.0):
                 box = (255 * a)
                 d.rounded_rectangle([110, y - dy, W - 110, y + 150 - dy], radius=28,
                                     fill=(20, 28, 42, int(215 * a)))
-                d.text((170, y + 32 - dy), emo, font=font("bold", 74),
-                       fill=(255, 255, 255, int(255 * a)))
-                d.text((290, y + 26 - dy), name, font=font("black", 52),
+                d.ellipse([168, y + 46 - dy, 232, y + 110 - dy],
+                          fill=(*ACCENT, int(210 * a)))
+                d.ellipse([186, y + 64 - dy, 214, y + 92 - dy],
+                          fill=(12, 18, 28, int(255 * a)))
+                d.text((290, y + 26 - dy), _safe(name), font=font("black", 52),
                        fill=(*COLORS["text"], int(255 * a)))
-                d.text((290, y + 90 - dy), sub, font=font("medium", 34),
+                d.text((290, y + 90 - dy), _safe(sub), font=font("medium", 34),
                        fill=(*COLORS["muted"], int(255 * a)))
                 y += 168
             fr = Image.alpha_composite(fr, lay)
@@ -490,36 +526,75 @@ def scene_things_we_find(items, caption, dur=12.0, env=None, t_off=0.0):
     return gen(), dur
 
 
-def scene_testimonial(quote, name, dur=8.0, env=None, t_off=0.0):
-    """5-star review card — social proof (you have 34 five-star reviews)."""
+def scene_testimonial(quote, name, dur=8.0, env=None, t_off=0.0, tag=""):
+    """5-star review card — REAL customer reviews (5.0 across 34 Google reviews).
+    `tag` shows the vehicle/service (e.g. "2018 GMC CANYON") so each card is
+    visually distinct. Quote font auto-fits so long reviews never overflow."""
     n = int(dur * FPS)
     foot = footer_handle()
+    CARD_TOP, CARD_BOT = 500, 1380
+
+    # ---- auto-fit the quote ----
+    probe = ImageDraw.Draw(Image.new("RGB", (W, H)))
+    qtext = f'"{quote}"'
+    for size, step in ((52, 70), (46, 62), (41, 56), (37, 50)):
+        lines = wrap(probe, qtext, font("semibold", size), W - 260)
+        if len(lines) <= 6:
+            break
+    if len(lines) > 7:                       # hard safety: never overflow the card
+        lines = lines[:7]
+        lines[-1] = lines[-1].rstrip('"').rstrip() + '…"'
+    qfont, qstep = font("semibold", size), step
+
+    # ---- static layer (everything except the stars, which animate) ----
     lay = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     d = ImageDraw.Draw(lay)
-    chip(d, W/2, 200, "5.0 ★ ON GOOGLE", font("black", 44), bg=(231, 181, 74),
+    chip(d, W/2, 190, "5.0 STARS ON GOOGLE", font("black", 44), bg=(231, 181, 74),
          fg=(20, 16, 6), tracking=4)
-    d.rounded_rectangle([90, 520, W - 90, 1320], radius=40, fill=(16, 24, 38, 235))
-    draw_tracked(d, (W/2, 590), "★ ★ ★ ★ ★", font("black", 64), (231, 181, 74),
-                 tracking=6, anchor="m")
-    y = 720
-    for ln in wrap(d, f'"{quote}"', font("semibold", 52), W - 260):
-        draw_tracked(d, (W/2, y), ln, font("semibold", 52), COLORS["text"],
-                     tracking=1, anchor="m")
-        y += 70
-    draw_tracked(d, (W/2, y + 40), f"— {name}, Kamloops", font("medium", 40),
+    d.rounded_rectangle([90, CARD_TOP, W - 90, CARD_BOT], radius=40, fill=(16, 24, 38, 238))
+    d.rounded_rectangle([90, CARD_TOP, W - 90, CARD_BOT], radius=40,
+                        outline=(231, 181, 74, 90), width=3)
+    if tag:
+        chip(d, W/2, CARD_TOP + 160, tag, font("bold", 34),
+             bg=(34, 44, 62), fg=ACCENT, tracking=5)
+    y0 = CARD_TOP + (250 if tag else 200)
+    y = y0
+    for ln in lines:
+        draw_tracked(d, (W/2, y), ln, qfont, COLORS["text"], tracking=1, anchor="m")
+        y += qstep
+    draw_tracked(d, (W/2, y + 46), f"— {name}, Kamloops", font("medium", 40),
                  COLORS["muted"], tracking=1, anchor="m")
-    chip(d, W/2, 1400, "34 FIVE-STAR REVIEWS", font("bold", 38),
+    chip(d, W/2, CARD_BOT + 70, "34 FIVE-STAR REVIEWS", font("bold", 38),
          bg=(20, 28, 42), fg=ACCENT, tracking=4)
+
+    star_y = CARD_TOP + 76          # vertical centre of the star row
+    star_r = 34
+    gap = 30
+    total = 5 * (star_r * 2) + 4 * gap
+    star_x0 = (W - total) / 2 + star_r
 
     def gen():
         for i in range(n):
             t = i / FPS
-            a = min(1.0, t / 0.7)
+            fade = min(1.0, t / 0.6)
+            rise = int((1 - bk.ease(min(1.0, t / 0.7))) * 34)
             fr = background().convert("RGBA")
-            l2 = lay.copy()
-            if a < 1:
-                l2.putalpha(l2.split()[3].point(lambda v: int(v * a)))
+            l2 = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+            l2.paste(lay, (0, rise), lay)
+            if fade < 1:
+                l2.putalpha(l2.split()[3].point(lambda v: int(v * fade)))
             fr = Image.alpha_composite(fr, l2)
+            # stars pop in one at a time (drawn as vectors, not font glyphs)
+            sd = ImageDraw.Draw(fr, "RGBA")
+            for k in range(5):
+                st = 0.45 + k * 0.13
+                if t < st:
+                    break
+                p = min(1.0, (t - st) / 0.18)
+                a = int(255 * p)
+                pop = 1.0 + 0.45 * (1 - p)
+                cx = star_x0 + k * (star_r * 2 + gap)
+                _star(sd, cx, star_y + rise, star_r * pop, (231, 181, 74, a))
             fr = Image.alpha_composite(fr, foot).convert("RGB")
             yield fr
     return gen(), dur

@@ -272,6 +272,67 @@ def promo_price(seq):
     }
 
 
+
+# ---------------------------------------------------------------- INTERIOR ZONES
+# Narration per interior zone, so each before/after video sounds as different
+# as it looks. Zones come from interiors.ZONES (12 of them).
+ZONE_VO = {
+    "seat": [
+        "Front seats take the most abuse in any vehicle. Sweat, spills, and ground-in dirt sit deep in the fabric until they're steamed and extracted.",
+        "This is a front seat after months of daily driving. We steam it, shampoo it, and pull the dirt back out instead of just wiping the surface.",
+    ],
+    "rear_seat": [
+        "Back seats are where the real chaos lives. Snacks, juice, and whatever the kids dropped last month.",
+        "Rear bench with a child seat. We pull the seat, clean underneath, and treat every stain we find.",
+    ],
+    "mat": [
+        "Floor mats hold everything your shoes bring in. Sand, salt, gravel, and mud, packed into the rubber.",
+        "Mats come out of the car every time. Cleaning them in place just pushes the grit into your carpet.",
+    ],
+    "carpet": [
+        "Carpet holds more dirt than any other surface in your car. We shampoo it and extract the water so it dries clean.",
+        "Footwell carpet after a Kamloops winter. Salt and grit work their way deep into the pile.",
+    ],
+    "dash": [
+        "Dashboards collect a layer of dust you stop noticing until it's gone. We steam it and finish with UV protection.",
+        "Dash and console. Every vent, seam, and button gets detailed, then dressed to stop the sun from cracking it.",
+    ],
+    "vents": [
+        "Air vents are where dust hides, and where most car smells actually come from. We brush and steam them out.",
+        "Nobody cleans their vents. That's exactly why they hold years of dust and odour.",
+    ],
+    "console": [
+        "Cupholders and the console get sticky fast. Steam breaks it down without scratching the plastic.",
+        "Center console. Coffee rings, crumbs, and sticky residue in every corner.",
+    ],
+    "door": [
+        "Door panels and pockets collect grit, and the handles hold more grime than anything you touch.",
+        "Door pocket. Sand, coins, and dirt that scratches every time you drive.",
+    ],
+    "trunk": [
+        "The trunk is the part everyone forgets. Groceries leak, gear gets tossed in, and nobody ever vacuums it.",
+        "Cargo area after a season of hauling. We vacuum it, treat the stains, and make it usable again.",
+    ],
+    "third_row": [
+        "Seven seaters take twice the work. We do all three rows and the cargo well behind them.",
+        "Third row and cargo area. The seats nobody thinks about until someone has to sit there.",
+    ],
+    "steering": [
+        "Your steering wheel is the surface you touch most and clean least. It builds up oils fast.",
+        "Wheel and instrument cluster. Steamed, cleaned, and left with a clean matte finish.",
+    ],
+    "headliner": [
+        "Headliners need a light touch. Scrub too hard and the glue lets go, so we dab and lift instead.",
+        "Roof lining with smoke and dust staining. Careful, low-moisture cleaning only.",
+    ],
+}
+
+
+def _zone_vo(zone, seq):
+    pool = ZONE_VO.get(zone)
+    return _v(pool, seq, 401) if pool else _v(BA_INTRO_VO, seq, 77)
+
+
 def before_after(seq):
     pairs = _pairs()
     if pairs:
@@ -280,10 +341,11 @@ def before_after(seq):
                "title": "REAL RESULTS", "caption": "Real Kamloops interior — before & after.",
                "vo": _v(BA_INTRO_VO, seq, 77)}
     else:
-        zone = interiors.ZONES[seq % len(interiors.ZONES)]
+        zones = interiors.ZONES
+        zone = _v(zones, seq, 402)
         ztitle, zcap = interiors.ZONE_TITLES[zone]
         seg = {"type": "before_after_auto", "zone": zone, "seed": seq,
-               "title": ztitle, "caption": zcap, "vo": _v(BA_INTRO_VO, seq, 77)}
+               "title": ztitle, "caption": zcap, "vo": _zone_vo(zone, seq)}
     return {
         "id": "before_after",
         "segments": [
@@ -502,27 +564,54 @@ def things_we_find(seq):
 
 # ---------------------------------------------------------------- TESTIMONIAL (social proof)
 TESTIMONIALS = [
-    ("They came right to my driveway and my car looks brand new inside. Worth every penny.", "Sarah"),
-    ("Got all the dog hair out of my SUV. I honestly didn't think that was possible.", "Mike"),
-    ("Booked them for my boat before the long weekend. Looked showroom fresh.", "Dave"),
-    ("Kids destroyed my back seat. They fixed it in a few hours. Incredible.", "Jen"),
-    ("Best detailing in Kamloops, and I didn't have to go anywhere.", "Ryan"),
-    ("Steam cleaned my seats and the old coffee stain vanished. Amazing work.", "Priya"),
+    ("Cleaned up the pet hair and made my CRV look new. Would recommend if you're "
+     "looking for a great car detail!", "Dy-anna G.", "HONDA CR-V"),
+    ("Just had my Ford Explorer detailed and I'm thrilled at the result. The attention "
+     "to detail is top notch. Reasonable pricing and couldn't be happier.",
+     "Corinne L.", "FORD EXPLORER"),
+    ("Just got our minivan detailed and it looks great! On time, efficient, and did a "
+     "great job. Definitely will use them again.", "Devin F.", "MINIVAN"),
+    ("Price was extremely fair, and he was thorough, friendly and very professional. "
+     "Plus he came to us, which was incredibly convenient.", "Chelsea M.", "2018 GMC CANYON"),
+    ("Quick easy communication, excellent pricing, and did an excellent job with the "
+     "interior of the truck I had done.", "Kevin C.", "TRUCK INTERIOR"),
+    ("I bought a car from a pet owner - hair, food, dirt, and an awful smell. He got "
+     "all of it out in about 4 hours. Stains, hair, smell - it's like brand new!",
+     "Joshua W.", "FULL INTERIOR RESET"),
+]
+
+TESTIMONIAL_INTROS = [
+    "Here's what a real Kamloops customer had to say.",
+    "Straight from a customer review this month.",
+    "This is why we do what we do.",
+    "Real words from a real customer, right here in Kamloops.",
+    "Another five star review from a local customer.",
+    "Here's some feedback we're pretty proud of.",
+]
+
+TESTIMONIAL_OUTROS = [
+    "That's five point zero stars across thirty four reviews. We come to you, anywhere in Kamloops.",
+    "Thirty four five star reviews and counting. Message us to book your mobile detail.",
+    "Join thirty four happy customers. We bring the detail shop to your driveway.",
+    "Five star rated across Kamloops. Book yours and we'll come to you.",
 ]
 
 def testimonial(seq):
-    q, nm = TESTIMONIALS[seq % len(TESTIMONIALS)]
+    """One REAL customer review, presented as a 5-star card."""
+    q, nm, tag = _v(TESTIMONIALS, seq, 303)
+    stars = "\u2b50" * 5
     return {
         "id": "testimonial",
         "segments": [
             VAN(seq),
-            {"type": "testimonial", "quote": q, "name": nm,
-             "vo": f"Here's what our customers say. {q} That's why we do this."},
-            {"type": "outro", "line": "Join 34 five-star customers — DM to book.",
-             "vo": "Thirty four five star reviews and counting. We come to you, anywhere in Kamloops."},
+            {"type": "testimonial", "quote": q, "name": nm, "tag": tag,
+             "vo": f"{_v(TESTIMONIAL_INTROS, seq, 301)} {q}"},
+            {"type": "outro", "line": "Join 34 five-star customers - DM to book.",
+             "vo": _v(TESTIMONIAL_OUTROS, seq, 302)},
         ],
-        "caption": _caption("Real words from real Kamloops customers \u2b50",
-                            "5.0 stars across 34 Google reviews. Mobile detailing that comes to you."),
+        "caption": _caption(
+            f'{stars} "{q}" - {nm}',
+            "Real review from a real Kamloops customer. 5.0 stars across 34 Google reviews."),
     }
 
 
@@ -531,8 +620,10 @@ def testimonial(seq):
 # so a given format lands on a different weekday each week and no day repeats
 # a format. Slot 2 is always the funny video.
 INFO_DECK = [
-    before_after,          # strongest proof
+    before_after,          # strongest proof - 12 distinct interior zones
     before_after,
+    before_after,
+    testimonial,           # real 5-star reviews
     boat_before_after,     # boat niche — nobody else targets it
     boat_detail,
     testimonial,           # social proof (5.0 / 34 reviews)
