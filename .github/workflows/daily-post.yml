@@ -1,18 +1,31 @@
 name: Daily AutoSpa Posts
 
+# Kamloops is UTC-7 (PDT):
+#   15:00 UTC = 08:00 local  -> slot 0
+#   20:00 UTC = 13:00 local  -> slot 1
+#   01:00 UTC = 18:00 local  -> slot 2  (the funny video)
+#
+# NOTE: the slot is derived from the UTC hour inside main.py, NOT from matching
+# the cron string. String matching was fragile (a stray double space meant the
+# evening run never matched, so the funny video never posted).
 on:
   schedule:
-    - cron: "0 15 * * *"    # slot 0 — morning (08:00 Kamloops)
-    - cron: "0 20 * * *"    # slot 1 — midday (13:00 Kamloops)
-    - cron: "0 1  * * *"    # slot 2 — evening (18:00 Kamloops)
+    - cron: "0 15 * * *"
+    - cron: "0 20 * * *"
+    - cron: "0 1 * * *"
   workflow_dispatch:
     inputs:
       slot:
-        description: "Slot to post (0,1,2)"
-        default: "0"
+        description: "Slot to post (0=morning, 1=midday, 2=funny). Leave blank to auto-detect."
+        required: false
+        default: ""
 
 permissions:
-  contents: write            # allows creating the Release that hosts the video
+  contents: write
+
+concurrency:
+  group: autospa-post
+  cancel-in-progress: false
 
 jobs:
   post:
@@ -20,15 +33,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Pick slot
-        id: slot
+      - name: Show trigger info
         run: |
-          case "${{ github.event.schedule }}" in
-            "0 15 * * *") echo "slot=0" >> $GITHUB_OUTPUT ;;
-            "0 20 * * *") echo "slot=1" >> $GITHUB_OUTPUT ;;
-            "0 1 * * *")  echo "slot=2" >> $GITHUB_OUTPUT ;;
-            *) echo "slot=${{ github.event.inputs.slot }}" >> $GITHUB_OUTPUT ;;
-          esac
+          echo "event=${{ github.event_name }}"
+          echo "schedule=${{ github.event.schedule }}"
+          echo "utc_hour=$(date -u +%H)"
+          echo "manual_slot=${{ github.event.inputs.slot }}"
 
       - name: Locate project (handles any folder nesting)
         id: proj
@@ -48,13 +58,19 @@ jobs:
       - name: Build + post
         working-directory: ${{ steps.proj.outputs.dir }}
         env:
-          SLOT: ${{ steps.slot.outputs.slot }}
+          # Blank on scheduled runs -> main.py derives the slot from the UTC hour.
+          SLOT: ${{ github.event.inputs.slot }}
           DRY_RUN: ${{ vars.DRY_RUN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           IG_USER_ID: ${{ secrets.IG_USER_ID }}
           IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
-        run: python src/main.py --slot "${SLOT}"
+        run: |
+          if [ -n "${SLOT}" ]; then
+            python src/main.py --slot "${SLOT}"
+          else
+            python src/main.py
+          fi
 
       - name: Save no-repeat history
         if: success()
